@@ -11,13 +11,13 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json tsconfig.base.json .npmrc ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/frontend/package.json apps/frontend/
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile --config.node-linker=hoisted
 
 COPY packages/shared packages/shared
 COPY apps/frontend apps/frontend
 
-RUN pnpm --filter @waflow/shared build \
-  && pnpm --filter @waflow/frontend build
+RUN cd packages/shared && ../../node_modules/.bin/tsc -p tsconfig.json \
+  && cd /app/apps/frontend && ../../node_modules/.bin/next build
 
 # ── Runtime ──────────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner

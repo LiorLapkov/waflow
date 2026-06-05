@@ -2,6 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Flat node_modules layout (no symlinks). Required for predictable behaviour
+# inside multi-stage Docker builds: tsc/Node always find packages at
+# node_modules/<pkg>. Mirrors `node-linker=hoisted` in .npmrc.
+nodeLinker: hoisted
+
 # pnpm blocks postinstall scripts of dependencies by default.
 # Allow the ones we actually need: argon2 native build and Prisma engines.
 allowBuilds:

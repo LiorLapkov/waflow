@@ -11,21 +11,25 @@ RUN corepack enable && corepack prepare pnpm@11.5.1 --activate
 WORKDIR /app
 
 # Workspace manifests — used to cache the install layer.
+# We deliberately do NOT copy pnpm-lock.yaml here: --no-frozen-lockfile lets
+# pnpm pick the hoisted layout from .npmrc cleanly when resolving fresh.
 COPY pnpm-workspace.yaml package.json tsconfig.base.json .npmrc ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/backend/package.json apps/backend/
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile --config.node-linker=hoisted
 
 # Sources.
 COPY packages/shared packages/shared
 COPY apps/backend apps/backend
 
-RUN pnpm --filter @waflow/shared build \
-  && pnpm --filter @waflow/backend exec prisma generate \
-  && pnpm --filter @waflow/backend build
+# Build shared by running tsc directly (avoid pnpm --filter quirks under hoisted layout)
+RUN cd packages/shared && ../../node_modules/.bin/tsc -p tsconfig.json \
+  && cd /app/apps/backend \
+  && ../../node_modules/.bin/prisma generate \
+  && ../../node_modules/.bin/nest build
 
 WORKDIR /app/apps/backend
 EXPOSE 3001
 
 # Apply migrations, then start (the admin is auto-seeded on bootstrap).
-CMD ["sh", "-c", "pnpm prisma:deploy:docker && node dist/main.js"]
+CMD ["sh", "-c", "/app/node_modules/.bin/prisma migrate deploy && node dist/main.js"]
