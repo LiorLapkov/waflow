@@ -1,0 +1,34 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# env & secrets
+.env
+.env.local
+.env.*.local
+infra/cloudflared/*.json
+infra/cloudflared/cert.pem
+
+# prisma
+apps/backend/prisma/*.db
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# os
+.DS_Store
+
+# docker volumes (если смонтированы локально)
+infra/.volumes/
+
+# test
+coverage/

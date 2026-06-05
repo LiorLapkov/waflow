@@ -1,0 +1,226 @@
+# DLJobs WhatsApp CRM — инфраструктура.
+# Запуск из корня репозитория:
+#   docker compose -f infra/docker-compose.yml --env-file .env up -d
+#
+# WhatsApp-провайдер: Evolution API (Baileys). Несколько номеров одновременно
+# без лицензии. Раньше использовался WAHA Core (1 сессия) / WAHA Plus (платно).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - '${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Одноразовая инициализация бакета для медиа.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing local/${MINIO_BUCKET};
+      echo 'bucket ready';
+      "
+    restart: 'no'
+
+  # Redis для очередей событий Evolution.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Отдельный Postgres для Evolution — чтобы наша CRM-БД и состояние провайдера
+  # были независимы (можно дропать одну, не задев другую).
+  evolution_postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD}
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U evolution -d evolution']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Evolution API (Baileys). Multi-instance без лицензии.
+  # Глобальный webhook → backend; защита по полю apikey в payload (= EVOLUTION_WEBHOOK_SECRET).
+  #
+  # ВАЖНО: Baileys стабильно работает только на ЛИНУКС x86_64.
+  # На Apple Silicon (M-чипы) WhatsApp анти-bot ловит TLS-fingerprint из-за
+  # Rosetta/VM прослоек и тихо игнорирует подключение (sticky "connecting").
+  # Разворачивать на: домашний Ubuntu/Debian-сервер, VPS Hetzner/Hetzner и т.п.
+  evolution:
+    image: atendai/evolution-api:latest
+    restart: unless-stopped
+    depends_on:
+      evolution_postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: ${EVOLUTION_BASE_URL:-http://evolution:8080}
+
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: 'true'
+
+      DATABASE_ENABLED: 'true'
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_DB_PASSWORD}@evolution_postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_exchange
+      DATABASE_SAVE_DATA_INSTANCE: 'true'
+      DATABASE_SAVE_DATA_NEW_MESSAGE: 'false'
+      DATABASE_SAVE_MESSAGE_UPDATE: 'false'
+      DATABASE_SAVE_DATA_CONTACTS: 'true'
+      DATABASE_SAVE_DATA_CHATS: 'true'
+
+      CACHE_REDIS_ENABLED: 'true'
+      CACHE_REDIS_URI: redis://redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: 'true'
+      CACHE_LOCAL_ENABLED: 'false'
+
+      # Глобальный webhook: все события всех инстансов летят сюда.
+      # Per-instance webhook'и не задаём — глобальный покрывает.
+      WEBHOOK_GLOBAL_URL: ${BACKEND_PUBLIC_URL:-http://backend:3001}/webhooks/waha
+      WEBHOOK_GLOBAL_ENABLED: 'true'
+      # false → все события на один URL (нам так удобнее).
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: 'false'
+      WEBHOOK_EVENTS_QRCODE_UPDATED: 'true'
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: 'true'
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: 'true'
+      WEBHOOK_EVENTS_MESSAGES_UPDATE: 'false'
+      WEBHOOK_EVENTS_SEND_MESSAGE: 'false'
+      WEBHOOK_EVENTS_CONTACTS_UPSERT: 'false'
+      WEBHOOK_EVENTS_CHATS_UPSERT: 'false'
+
+      # Чтобы webhook содержал base64 медиа сразу — экономит +1 запрос с нашей стороны.
+      CONFIG_SESSION_PHONE_CLIENT: DLJobs CRM
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: '30'
+      QRCODE_COLOR: '#198754'
+
+      LANGUAGE: en
+      LOG_LEVEL: ERROR,WARN,INFO,LOG,VERBOSE,DEBUG,WEBHOOKS
+      LOG_COLOR: 'false'
+      LOG_BAILEYS: warn
+      DEL_INSTANCE: 'false'
+    ports:
+      - '${EVOLUTION_PORT:-8081}:8080'
+    volumes:
+      - evolution_instances:/evolution/instances
+
+  backend:
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      evolution:
+        condition: service_started
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      BACKEND_PORT: ${BACKEND_PORT:-3001}
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://backend:3001}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3002}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      EVOLUTION_BASE_URL: ${EVOLUTION_INTERNAL_URL:-http://evolution:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      EVOLUTION_WEBHOOK_SECRET: ${EVOLUTION_WEBHOOK_SECRET}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-whatsapp-media}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    ports:
+      - '${BACKEND_PORT:-3001}:3001'
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${FRONTEND_PORT:-3002}
+    ports:
+      - '${FRONTEND_PORT:-3002}:3002'
+
+  # Реверс-прокси: один порт наружу, маршрутизирует на backend/frontend.
+  # Используется и для локального доступа (http://localhost:8080), и для Cloudflare Tunnel.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+
+volumes:
+  pgdata:
+  miniodata:
+  redisdata:
+  evolution_pgdata:
+  evolution_instances:
+  caddydata:
+  caddyconfig:

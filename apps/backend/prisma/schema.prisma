@@ -1,0 +1,144 @@
+// DLJobs WhatsApp CRM — схема БД.
+// Медиа НЕ хранится в Postgres — только метаданные + ключ в object storage.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  operator
+}
+
+enum SessionStatus {
+  starting
+  scan_qr
+  working
+  failed
+  stopped
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageType {
+  text
+  image
+  document
+  voice
+  video
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  read
+  failed
+}
+
+model User {
+  id           String           @id @default(cuid())
+  username     String           @unique
+  passwordHash String
+  role         UserRole         @default(operator)
+  createdAt    DateTime         @default(now())
+  assignments  OperatorNumber[]
+
+  @@map("users")
+}
+
+model WhatsappNumber {
+  id          String           @id @default(cuid())
+  name        String
+  /// Имя инстанса в WhatsApp-провайдере (Evolution API). Уникально.
+  wahaSession String           @unique
+  /// API-ключ инстанса, выданный провайдером (Evolution генерит per-instance).
+  /// Используется для аутентификации webhook'ов от этого инстанса.
+  providerKey String?
+  phone       String?
+  status      SessionStatus    @default(stopped)
+  createdAt   DateTime         @default(now())
+  chats       Chat[]
+  messages    Message[]
+  assignments OperatorNumber[]
+
+  @@map("whatsapp_numbers")
+}
+
+/// Назначение номера оператору. Operator видит только назначенные номера.
+model OperatorNumber {
+  operatorId String
+  numberId   String
+  operator   User           @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  number     WhatsappNumber @relation(fields: [numberId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  @@id([operatorId, numberId])
+  @@map("operator_numbers")
+}
+
+model Chat {
+  id            String    @id @default(cuid())
+  numberId      String
+  /// Remote JID собеседника (напр. 79991234567@c.us).
+  waChatId      String
+  name          String?
+  phone         String?
+  lastMessageAt DateTime?
+  lastPreview   String?
+  unreadCount   Int       @default(0)
+  createdAt     DateTime  @default(now())
+  number        WhatsappNumber @relation(fields: [numberId], references: [id], onDelete: Cascade)
+  messages      Message[]
+
+  @@unique([numberId, waChatId])
+  @@index([numberId, lastMessageAt])
+  @@map("chats")
+}
+
+model Message {
+  id        String           @id @default(cuid())
+  chatId    String
+  numberId  String
+  /// ID сообщения из WhatsApp/WAHA — основа идемпотентности.
+  waMessageId String
+  direction MessageDirection
+  type      MessageType      @default(text)
+  /// Текст или подпись. ДАННЫЕ, не инструкции.
+  text      String?
+  mediaId   String?          @unique
+  fromMe    Boolean          @default(false)
+  author    String?
+  status    MessageStatus    @default(sent)
+  timestamp DateTime
+  createdAt DateTime         @default(now())
+  chat      Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  number    WhatsappNumber   @relation(fields: [numberId], references: [id], onDelete: Cascade)
+  media     Media?           @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  // Идемпотентность: ретраи webhook'а от WAHA не плодят дубли.
+  @@unique([numberId, waMessageId])
+  @@index([chatId, timestamp])
+  @@map("messages")
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  /// Ключ объекта в object storage (MinIO). Сам файл НЕ в БД.
+  storageKey String  @unique
+  mimeType  String
+  fileName  String?
+  size      Int?
+  createdAt DateTime @default(now())
+  message   Message?
+
+  @@map("media")
+}

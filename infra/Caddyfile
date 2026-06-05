@@ -1,0 +1,35 @@
+# Реверс-прокси DLJobs WhatsApp CRM.
+# Один публичный порт :8080, за ним:
+#   /api/*        → backend (REST)
+#   /socket.io/*  → backend (WebSocket с upgrade)
+#   все остальные → frontend (Next.js)
+#
+# Cloudflare Quick Tunnel экспонирует именно этот порт наружу.
+
+:8080 {
+	# логи в stdout контейнера
+	log {
+		output stdout
+		format console
+	}
+
+	# health-эндпоинт для проверки самого Caddy
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# REST API
+	handle /api/* {
+		reverse_proxy backend:3001
+	}
+
+	# Socket.io: и polling, и websocket. Caddy сам корректно проксирует Upgrade.
+	handle /socket.io/* {
+		reverse_proxy backend:3001
+	}
+
+	# Всё остальное — фронт (страницы, _next, статика).
+	handle {
+		reverse_proxy frontend:3002
+	}
+}

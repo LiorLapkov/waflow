@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "echo 'frontend already running in docker on 3002' && sleep infinity"],
+      "port": 3002
+    }
+  ]
+}
