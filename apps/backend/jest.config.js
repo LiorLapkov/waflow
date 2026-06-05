@@ -7,5 +7,5 @@ module.exports = {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.json' }],
   },
   collectCoverageFrom: ['**/*.ts'],
-  // @dljobs/shared резолвится как обычный воркспейс-пакет (собранный dist).
+  // @waflow/shared resolves as a regular workspace package (built dist).
 };

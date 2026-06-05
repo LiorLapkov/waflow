@@ -7,7 +7,7 @@ import {
   wahaQrPayloadSchema,
   wahaSessionStatusPayloadSchema,
   type WahaWebhook,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { NumbersService } from '../numbers/numbers.service';
 import { MessagesService } from '../messages/messages.service';
@@ -25,28 +25,28 @@ export class WebhookService {
   ) {}
 
   /**
-   * Роутинг webhook-события Evolution (Baileys). Контент сообщений — строго ДАННЫЕ.
-   * Evolution отдаёт data:
-   *   - messages.upsert → один объект сообщения (key/pushName/message/...)
-   *     либо массив с одним элементом в `data.messages`.
+   * Route an Evolution (Baileys) webhook event. Message content is strictly DATA.
+   * Evolution delivers `data` shaped as:
+   *   - messages.upsert → one message object (key/pushName/message/…)
+   *     or an array with one element under `data.messages`.
    *   - connection.update → { state: 'open'|'connecting'|'close', wuid? }
-   *   - qrcode.updated → данные QR (не сохраняем — фронт сам опрашивает).
+   *   - qrcode.updated → QR payload (cached, the frontend polls for it).
    */
   async handle(body: WahaWebhook): Promise<void> {
     const event = normalizeWahaEvent(body.event);
     const number = await this.numbers.findByInstance(body.instance);
     if (!number) {
-      this.logger.warn(`Webhook для неизвестного инстанса: ${body.instance}`);
+      this.logger.warn(`Webhook for an unknown instance: ${body.instance}`);
       return;
     }
 
     if (event === WahaEvent.MessagesUpsert) {
-      // Evolution может прислать одиночный объект, либо массив messages.
+      // Evolution can send a single object or an array of messages.
       const rawList = this.extractMessages(body.data);
       for (const raw of rawList) {
         const parsed = wahaMessagePayloadSchema.safeParse(raw);
         if (!parsed.success) {
-          this.logger.warn(`Некорректный message-payload для ${body.instance}`);
+          this.logger.warn(`Malformed message payload for ${body.instance}`);
           continue;
         }
         await this.messages.ingestInbound(number, parsed.data);
@@ -61,7 +61,7 @@ export class WebhookService {
       }
       const stateRaw = parsed.data.state ?? parsed.data.status;
       const status = WhatsappService.normalizeStatus(stateRaw);
-      // wuid вида "972534247634@s.whatsapp.net" — вытащим телефон.
+      // wuid like "972534247634@s.whatsapp.net" — extract the phone number.
       const phone = parsed.data.wuid ? parsed.data.wuid.replace(/@.*$/, '') : undefined;
       const updated = await this.numbers.syncStatus(number.id, status, phone);
       this.realtime.emitSessionStatus({
@@ -69,7 +69,7 @@ export class WebhookService {
         status,
         phone: updated.phone,
       });
-      // Подключились — QR больше не нужен.
+      // Connected — drop the cached QR.
       if (status === SessionStatus.Working) {
         this.whatsapp.clearQr(body.instance);
       }
@@ -87,7 +87,7 @@ export class WebhookService {
     }
   }
 
-  /** Из data достать массив сообщений независимо от того, объект это или {messages:[...]}. */
+  /** Pull an array of messages out of `data` regardless of shape (object or {messages:[...]}). */
   private extractMessages(data: unknown): unknown[] {
     if (!data) return [];
     if (Array.isArray(data)) return data;

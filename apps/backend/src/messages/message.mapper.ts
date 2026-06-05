@@ -4,10 +4,10 @@ import {
   type MessageDto,
   type WahaMessageContent,
   type WahaMessagePayload,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import type { Media, Message } from '@prisma/client';
 
-/** Извлечь тип сообщения по содержимому Baileys (`message.imageMessage` и т.п.). */
+/** Detect the message type by Baileys content (`message.imageMessage` etc). */
 export function detectMessageType(content: WahaMessageContent | null | undefined): MessageType {
   if (!content) return MessageType.Text;
   if (content.imageMessage) return MessageType.Image;
@@ -18,7 +18,7 @@ export function detectMessageType(content: WahaMessageContent | null | undefined
   return MessageType.Text;
 }
 
-/** Текст или подпись медиа из Baileys-payload. */
+/** Text or media caption from a Baileys payload. */
 export function extractText(content: WahaMessageContent | null | undefined): string | null {
   if (!content) return null;
   if (typeof content.conversation === 'string' && content.conversation) return content.conversation;
@@ -29,7 +29,7 @@ export function extractText(content: WahaMessageContent | null | undefined): str
   return null;
 }
 
-/** Метаданные медиа (mime, filename) из Baileys-payload. */
+/** Media metadata (mime, filename) from a Baileys payload. */
 export function extractMediaMeta(
   content: WahaMessageContent | null | undefined,
 ): { mimeType: string; fileName: string | null } | null {
@@ -55,7 +55,7 @@ export function extractMediaMeta(
   return null;
 }
 
-/** Унифицированный взгляд на одно входящее сообщение Baileys для нашей логики. */
+/** A unified view of one inbound Baileys message for our pipeline. */
 export interface ParsedInbound {
   waMessageId: string;
   waChatId: string;

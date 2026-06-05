@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    // Генерируемое и собранное — не линтуем.
+    // Skip generated and built output.
     ignores: [
       '**/dist/**',
       '**/.next/**',
@@ -22,7 +22,7 @@ export default tseslint.config(
       sourceType: 'module',
     },
     rules: {
-      // TS-проект уже даёт строгую типизацию; смягчаем шумные правила.
+      // The TS project already enforces strict typing; quiet down the noisy rules.
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-empty-object-type': 'off',

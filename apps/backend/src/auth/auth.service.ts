@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import type { AuthResultDto, LoginDto, UserDto } from '@dljobs/shared';
+import type { AuthResultDto, LoginDto, UserDto } from '@waflow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../common/types';
 import { toUserDto } from '../users/user.mapper';
@@ -13,7 +13,7 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  /** Хэширование пароля (argon2id). В открытом виде пароли не храним. */
+  /** Password hashing (argon2id). We never store plaintext passwords. */
   static hashPassword(password: string): Promise<string> {
     return argon2.hash(password, { type: argon2.argon2id });
   }
@@ -21,11 +21,11 @@ export class AuthService {
   async validateUser(dto: LoginDto): Promise<UserDto> {
     const user = await this.prisma.user.findUnique({ where: { username: dto.username } });
     if (!user) {
-      throw new UnauthorizedException('Неверный логин или пароль');
+      throw new UnauthorizedException('Invalid username or password');
     }
     const ok = await argon2.verify(user.passwordHash, dto.password);
     if (!ok) {
-      throw new UnauthorizedException('Неверный логин или пароль');
+      throw new UnauthorizedException('Invalid username or password');
     }
     return toUserDto(user);
   }

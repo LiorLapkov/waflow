@@ -1,15 +1,12 @@
-# Пример конфига Cloudflare Tunnel. Скопируй в config.yml и подставь значения.
-# credentials-file (*.json) и cert.pem — секреты, в репозиторий НЕ коммитим.
+# Cloudflare Tunnel config template. Copy to config.yml and fill in values.
+# credentials-file (*.json) and cert.pem are secrets — never committed.
 
 tunnel: <TUNNEL_ID>
 credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  # Панель оператора (frontend)
-  - hostname: crm.example.com
-    service: http://localhost:3002
-  # API бэкенда (опционально, если фронт ходит на отдельный поддомен)
-  - hostname: api.crm.example.com
-    service: http://localhost:3001
-  # Обязательный замыкающий блок
+  # Single hostname — Caddy on :8080 routes both UI and API.
+  - hostname: inbox.example.com
+    service: http://localhost:8080
+  # Required catch-all
   - service: http_status:404

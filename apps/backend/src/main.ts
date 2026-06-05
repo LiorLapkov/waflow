@@ -11,9 +11,9 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService<AppEnv, true>);
 
   app.use(cookieParser());
-  // CORS: разрешаем все origin'ы из FRONTEND_ORIGIN (через запятую).
-  // С реверс-прокси (Caddy) фронт и бэкенд same-origin — CORS не используется,
-  // но конфигурация остаётся на случай прямого захода с другого хоста.
+  // CORS: allow every origin listed in FRONTEND_ORIGIN (comma-separated).
+  // With the Caddy reverse-proxy frontend and backend are same-origin — CORS is not used,
+  // but the config stays in place for direct access from another host.
   const origins = config
     .get('FRONTEND_ORIGIN', { infer: true })
     .split(',')
@@ -23,9 +23,9 @@ async function bootstrap(): Promise<void> {
     origin: origins.length === 1 ? origins[0] : origins,
     credentials: true,
   });
-  // Глобальный префикс /api для всех HTTP-роутов, КРОМЕ webhook'а WAHA и health.
-  // Это нужно, чтобы реверс-прокси мог чисто маршрутизировать /api/* → backend,
-  // а статика и страницы Next.js — на frontend.
+  // Global /api prefix for every HTTP route EXCEPT the provider webhook and health.
+  // This lets the reverse-proxy cleanly route /api/* → backend,
+  // while static assets and Next.js pages go to the frontend.
   app.setGlobalPrefix('api', {
     exclude: [
       { path: 'webhooks/(.*)', method: RequestMethod.ALL },
@@ -35,7 +35,7 @@ async function bootstrap(): Promise<void> {
 
   const port = config.get('BACKEND_PORT', { infer: true });
   await app.listen(port);
-  Logger.log(`Backend запущен на порту ${port}`, 'Bootstrap');
+  Logger.log(`Backend listening on port ${port}`, 'Bootstrap');
 }
 
 void bootstrap();

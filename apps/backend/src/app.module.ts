@@ -17,7 +17,7 @@ import { AppController } from './app.controller';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      // В docker переменные приходят из environment; локально — из корневого .env.
+      // In docker, env values come from the container environment; locally they come from the root .env.
       envFilePath: ['../../.env'],
       validate: validateEnv,
     }),

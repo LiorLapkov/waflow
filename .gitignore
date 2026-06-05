@@ -27,7 +27,7 @@ pnpm-debug.log*
 # os
 .DS_Store
 
-# docker volumes (если смонтированы локально)
+# docker volumes (when mounted locally)
 infra/.volumes/
 
 # test

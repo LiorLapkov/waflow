@@ -9,11 +9,11 @@ import {
   type MessageNewPayload,
   type SessionStatusPayload,
   type WhatsappNumberDto,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import { api } from './api';
 import { getSocket } from './socket';
 
-/** Сортировка чатов по последней активности (свежие — сверху). */
+/** Sort chats by latest activity (most recent first). */
 function sortChats(chats: ChatDto[]): ChatDto[] {
   return [...chats].sort((a, b) => {
     const ta = a.lastMessageAt ? Date.parse(a.lastMessageAt) : 0;
@@ -22,7 +22,7 @@ function sortChats(chats: ChatDto[]): ChatDto[] {
   });
 }
 
-/** Мобильный «экран» — на телефоне видна одна колонка за раз. */
+/** Mobile "view" — on phones we show one column at a time. */
 export type MobileView = 'numbers' | 'chats' | 'conversation';
 
 export function useCrm() {
@@ -33,7 +33,7 @@ export function useCrm() {
   const [messages, setMessages] = useState<MessageDto[]>([]);
   const [mobileView, setMobileView] = useState<MobileView>('numbers');
 
-  // Рефы для доступа к актуальному выбору внутри socket-обработчиков.
+  // Refs to access the latest selection inside socket handlers.
   const selectedNumberRef = useRef<string | null>(null);
   const selectedChatRef = useRef<string | null>(null);
   selectedNumberRef.current = selectedNumberId;
@@ -62,7 +62,7 @@ export function useCrm() {
     setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c)));
   }, []);
 
-  /** Мобильная навигация «Назад». */
+  /** Mobile back navigation. */
   const goBack = useCallback(() => {
     setMobileView((v) => (v === 'conversation' ? 'chats' : 'numbers'));
   }, []);
@@ -78,14 +78,14 @@ export function useCrm() {
     void loadNumbers();
   }, [loadNumbers]);
 
-  // Подписка на realtime-события.
+  // Subscribe to realtime events.
   useEffect(() => {
     const socket = getSocket();
 
     const onMessageNew = (p: MessageNewPayload) => {
       if (p.message.chatId === selectedChatRef.current) {
         setMessages((prev) => (prev.some((m) => m.id === p.message.id) ? prev : [...prev, p.message]));
-        // Открытый чат — сразу помечаем прочитанным.
+        // If the chat is open — mark as read right away.
         if (!p.message.fromMe) {
           api.post(`/chats/${p.message.chatId}/read`).catch(() => undefined);
         }
@@ -93,7 +93,7 @@ export function useCrm() {
     };
 
     const onChatUpdated = (p: ChatUpdatedPayload) => {
-      // Обновляем превью/непрочитанные в списке номеров.
+      // Refresh preview/unread in the number list.
       void loadNumbers();
       if (p.numberId !== selectedNumberRef.current) return;
       setChats((prev) => {

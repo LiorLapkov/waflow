@@ -1,13 +1,13 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UserRole } from '@dljobs/shared';
+import { UserRole } from '@waflow/shared';
 import type { AppEnv } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 
 /**
- * Создаёт первого администратора при старте, если его ещё нет.
- * Идемпотентно — работает и в docker, и при локальном запуске.
+ * Creates the first admin on startup if one does not exist yet.
+ * Idempotent — works both inside docker and when run locally.
  */
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -29,6 +29,6 @@ export class SeedService implements OnApplicationBootstrap {
     await this.prisma.user.create({
       data: { username, passwordHash, role: UserRole.Admin },
     });
-    this.logger.log(`Создан администратор "${username}".`);
+    this.logger.log(`Admin "${username}" created.`);
   }
 }

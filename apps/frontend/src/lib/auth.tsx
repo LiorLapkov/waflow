@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { AuthResultDto, LoginDto, UserDto } from '@dljobs/shared';
+import type { AuthResultDto, LoginDto, UserDto } from '@waflow/shared';
 import { api, ApiError } from './api';
 import { disconnectSocket } from './socket';
 
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error('useAuth должен использоваться внутри AuthProvider');
+    throw new Error('useAuth must be used inside AuthProvider');
   }
   return ctx;
 }

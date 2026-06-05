@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { ChatDto, MessageDto } from '@dljobs/shared';
+import type { ChatDto, MessageDto } from '@waflow/shared';
 import { api } from '@/lib/api';
 import { chatAvatarLetter, chatSubtitle, chatTitle } from '@/lib/chat-display';
 import { MessageBubble } from './MessageBubble';
@@ -25,7 +25,7 @@ export function Conversation({ chat, messages, onSend, onBack, visibilityClass =
     setResolving(true);
     try {
       await api.post(`/chats/${chat.id}/resolve`);
-      // обновлённый чат прилетит через Socket.io (chat:updated)
+      // the updated chat will arrive via Socket.io (chat:updated)
     } finally {
       setResolving(false);
     }
@@ -40,7 +40,7 @@ export function Conversation({ chat, messages, onSend, onBack, visibilityClass =
       <div
         className={`${visibilityClass} flex-1 items-center justify-center bg-wa-dark text-gray-500`}
       >
-        Выберите чат, чтобы начать
+        Select a chat to start
       </div>
     );
   }
@@ -65,7 +65,7 @@ export function Conversation({ chat, messages, onSend, onBack, visibilityClass =
           <button
             onClick={onBack}
             className="rounded p-1 text-gray-400 hover:bg-wa-hover hover:text-gray-100 md:hidden"
-            aria-label="Назад"
+            aria-label="Back"
           >
             ←
           </button>
@@ -81,10 +81,10 @@ export function Conversation({ chat, messages, onSend, onBack, visibilityClass =
           <button
             onClick={resolveNumber}
             disabled={resolving}
-            title="Запросить реальный номер у WAHA"
+            title="Resolve the real phone number from the provider"
             className="rounded border border-wa-green/50 px-3 py-1 text-xs text-wa-green hover:bg-wa-green/10 disabled:opacity-50"
           >
-            {resolving ? 'Уточняю…' : 'Уточнить номер'}
+            {resolving ? 'Resolving…' : 'Resolve number'}
           </button>
         )}
       </header>
@@ -100,7 +100,7 @@ export function Conversation({ chat, messages, onSend, onBack, visibilityClass =
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Введите сообщение…"
+          placeholder="Type a message…"
           className="flex-1 rounded-full bg-wa-dark px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-wa-green"
         />
         <button
@@ -108,7 +108,7 @@ export function Conversation({ chat, messages, onSend, onBack, visibilityClass =
           disabled={sending || !text.trim()}
           className="rounded-full bg-wa-green px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
         >
-          Отпр.
+          Send
         </button>
       </form>
     </div>

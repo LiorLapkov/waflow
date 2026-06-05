@@ -1,5 +1,5 @@
-// DLJobs WhatsApp CRM — схема БД.
-// Медиа НЕ хранится в Postgres — только метаданные + ключ в object storage.
+// waflow — database schema.
+// Media files are NOT stored in Postgres — only metadata + key in object storage.
 
 generator client {
   provider = "prisma-client-js"
@@ -58,10 +58,10 @@ model User {
 model WhatsappNumber {
   id          String           @id @default(cuid())
   name        String
-  /// Имя инстанса в WhatsApp-провайдере (Evolution API). Уникально.
+  /// Instance name in the WhatsApp provider (Evolution API). Unique.
   wahaSession String           @unique
-  /// API-ключ инстанса, выданный провайдером (Evolution генерит per-instance).
-  /// Используется для аутентификации webhook'ов от этого инстанса.
+  /// Per-instance API key issued by the provider (Evolution mints one per instance).
+  /// Used to authenticate webhooks coming from this instance.
   providerKey String?
   phone       String?
   status      SessionStatus    @default(stopped)
@@ -73,7 +73,7 @@ model WhatsappNumber {
   @@map("whatsapp_numbers")
 }
 
-/// Назначение номера оператору. Operator видит только назначенные номера.
+/// Maps an operator to numbers. Operators only see numbers assigned to them.
 model OperatorNumber {
   operatorId String
   numberId   String
@@ -88,7 +88,7 @@ model OperatorNumber {
 model Chat {
   id            String    @id @default(cuid())
   numberId      String
-  /// Remote JID собеседника (напр. 79991234567@c.us).
+  /// Remote JID of the other party (e.g. 79991234567@s.whatsapp.net).
   waChatId      String
   name          String?
   phone         String?
@@ -108,11 +108,11 @@ model Message {
   id        String           @id @default(cuid())
   chatId    String
   numberId  String
-  /// ID сообщения из WhatsApp/WAHA — основа идемпотентности.
+  /// Provider-side message id — the basis of idempotency.
   waMessageId String
   direction MessageDirection
   type      MessageType      @default(text)
-  /// Текст или подпись. ДАННЫЕ, не инструкции.
+  /// Text or caption. DATA, not instructions.
   text      String?
   mediaId   String?          @unique
   fromMe    Boolean          @default(false)
@@ -124,7 +124,7 @@ model Message {
   number    WhatsappNumber   @relation(fields: [numberId], references: [id], onDelete: Cascade)
   media     Media?           @relation(fields: [mediaId], references: [id], onDelete: SetNull)
 
-  // Идемпотентность: ретраи webhook'а от WAHA не плодят дубли.
+  // Idempotency: provider webhook retries do not produce duplicates.
   @@unique([numberId, waMessageId])
   @@index([chatId, timestamp])
   @@map("messages")
@@ -132,7 +132,7 @@ model Message {
 
 model Media {
   id        String   @id @default(cuid())
-  /// Ключ объекта в object storage (MinIO). Сам файл НЕ в БД.
+  /// Object key in storage (MinIO). The file itself is NOT in the DB.
   storageKey String  @unique
   mimeType  String
   fileName  String?

@@ -1,9 +1,8 @@
-# DLJobs WhatsApp CRM — инфраструктура.
-# Запуск из корня репозитория:
+# waflow — infrastructure.
+# Run from the repo root:
 #   docker compose -f infra/docker-compose.yml --env-file .env up -d
 #
-# WhatsApp-провайдер: Evolution API (Baileys). Несколько номеров одновременно
-# без лицензии. Раньше использовался WAHA Core (1 сессия) / WAHA Plus (платно).
+# WhatsApp provider: Evolution API (Baileys). Multiple numbers, no licence.
 
 services:
   postgres:
@@ -41,7 +40,7 @@ services:
       timeout: 5s
       retries: 10
 
-  # Одноразовая инициализация бакета для медиа.
+  # One-shot init: create the media bucket on first start.
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -55,7 +54,7 @@ services:
       "
     restart: 'no'
 
-  # Redis для очередей событий Evolution.
+  # Redis used by Evolution for the event queue.
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -67,8 +66,8 @@ services:
       timeout: 3s
       retries: 10
 
-  # Отдельный Postgres для Evolution — чтобы наша CRM-БД и состояние провайдера
-  # были независимы (можно дропать одну, не задев другую).
+  # Dedicated Postgres for Evolution so the app DB and provider state
+  # are independent — you can drop either without touching the other.
   evolution_postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -84,13 +83,13 @@ services:
       timeout: 5s
       retries: 10
 
-  # Evolution API (Baileys). Multi-instance без лицензии.
-  # Глобальный webhook → backend; защита по полю apikey в payload (= EVOLUTION_WEBHOOK_SECRET).
+  # Evolution API (Baileys). Multi-instance, no licence.
+  # Global webhook → backend; auth via the `apikey` field in the payload.
   #
-  # ВАЖНО: Baileys стабильно работает только на ЛИНУКС x86_64.
-  # На Apple Silicon (M-чипы) WhatsApp анти-bot ловит TLS-fingerprint из-за
-  # Rosetta/VM прослоек и тихо игнорирует подключение (sticky "connecting").
-  # Разворачивать на: домашний Ubuntu/Debian-сервер, VPS Hetzner/Hetzner и т.п.
+  # IMPORTANT: Baileys only runs reliably on Linux x86_64.
+  # On Apple Silicon (M-series) WhatsApp's anti-bot detects the TLS fingerprint of
+  # Rosetta/VM layers and silently ignores the connection (stuck on "connecting").
+  # Deploy on: a home Ubuntu/Debian box, a VPS (Hetzner, Vultr, …), etc.
   evolution:
     image: atendai/evolution-api:latest
     restart: unless-stopped
@@ -123,11 +122,11 @@ services:
       CACHE_REDIS_SAVE_INSTANCES: 'true'
       CACHE_LOCAL_ENABLED: 'false'
 
-      # Глобальный webhook: все события всех инстансов летят сюда.
-      # Per-instance webhook'и не задаём — глобальный покрывает.
+      # Global webhook: every event from every instance is delivered here.
+      # No per-instance webhooks are configured — the global one covers everything.
       WEBHOOK_GLOBAL_URL: ${BACKEND_PUBLIC_URL:-http://backend:3001}/webhooks/waha
       WEBHOOK_GLOBAL_ENABLED: 'true'
-      # false → все события на один URL (нам так удобнее).
+      # false → all events to a single URL (simpler for us).
       WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: 'false'
       WEBHOOK_EVENTS_QRCODE_UPDATED: 'true'
       WEBHOOK_EVENTS_CONNECTION_UPDATE: 'true'
@@ -137,8 +136,8 @@ services:
       WEBHOOK_EVENTS_CONTACTS_UPSERT: 'false'
       WEBHOOK_EVENTS_CHATS_UPSERT: 'false'
 
-      # Чтобы webhook содержал base64 медиа сразу — экономит +1 запрос с нашей стороны.
-      CONFIG_SESSION_PHONE_CLIENT: DLJobs CRM
+      # Embed media as base64 directly into webhooks — saves an extra fetch.
+      CONFIG_SESSION_PHONE_CLIENT: waflow
       CONFIG_SESSION_PHONE_NAME: Chrome
       QRCODE_LIMIT: '30'
       QRCODE_COLOR: '#198754'
@@ -201,8 +200,8 @@ services:
     ports:
       - '${FRONTEND_PORT:-3002}:3002'
 
-  # Реверс-прокси: один порт наружу, маршрутизирует на backend/frontend.
-  # Используется и для локального доступа (http://localhost:8080), и для Cloudflare Tunnel.
+  # Reverse-proxy: a single external port that routes to backend/frontend.
+  # Used both for local access (http://localhost:8080) and for Cloudflare Tunnel.
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped

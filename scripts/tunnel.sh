@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# Cloudflare Quick Tunnel — публичный HTTPS-URL без аккаунта.
-# Запуск:  ./scripts/tunnel.sh
-# Остановка: Ctrl+C
+# Cloudflare Quick Tunnel — public HTTPS URL without a Cloudflare account.
+# Run:  ./scripts/tunnel.sh
+# Stop: Ctrl+C
 #
-# URL генерируется случайным образом и существует ТОЛЬКО пока процесс жив.
-# При следующем запуске будет другой URL.
+# The URL is randomly generated and only lives while this process is running.
+# Each run gets a different URL.
 
 set -e
 
 if ! command -v cloudflared >/dev/null 2>&1; then
-  echo "❌ cloudflared не установлен. Поставь:  brew install cloudflared" >&2
+  echo "❌ cloudflared is not installed. Install:  brew install cloudflared" >&2
   exit 1
 fi
 
-# Проверим что Caddy на 8080 жив
+# Make sure Caddy on :8080 is alive
 if ! curl -sf http://localhost:8080/healthz >/dev/null 2>&1; then
-  echo "❌ Caddy на :8080 не отвечает. Сначала подними сервисы:"
+  echo "❌ Caddy on :8080 is not responding. Bring the stack up first:"
   echo "   docker compose -f infra/docker-compose.yml --env-file .env up -d"
   exit 1
 fi
 
-echo "✓ Caddy жив, стартую туннель…"
-echo "   (URL появится через 2–5 секунд, ищи строку trycloudflare.com)"
+echo "✓ Caddy is up, starting the tunnel…"
+echo "   (the URL appears in 2–5 seconds, look for the trycloudflare.com line)"
 echo
 exec cloudflared tunnel --url http://localhost:8080

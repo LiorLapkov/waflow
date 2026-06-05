@@ -1,5 +1,5 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
-import type { ChatDto } from '@dljobs/shared';
+import type { ChatDto } from '@waflow/shared';
 import { CurrentUser } from '../common/decorators';
 import type { AuthUser } from '../common/types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';

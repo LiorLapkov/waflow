@@ -22,11 +22,11 @@ export default function HomePage() {
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-500">Загрузка…</div>;
+    return <div className="flex min-h-screen items-center justify-center text-gray-500">Loading…</div>;
   }
 
-  // На мобиле виден ОДИН экран за раз; на десктопе (md+) — все три рядом.
-  // `100dvh` корректно учитывает мобильную клавиатуру/нижнюю панель браузера.
+  // On mobile a single screen at a time; on desktop (md+) all three side-by-side.
+  // `100dvh` plays nice with the mobile keyboard and browser chrome.
   const show = (view: 'numbers' | 'chats' | 'conversation') =>
     crm.mobileView === view ? 'flex md:flex' : 'hidden md:flex';
 

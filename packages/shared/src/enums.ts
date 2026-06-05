@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Тип содержимого сообщения WhatsApp. */
+/** WhatsApp message content type. */
 export const MessageType = {
   Text: 'text',
   Image: 'image',
@@ -17,7 +17,7 @@ export const messageTypeSchema = z.enum([
 ]);
 export type MessageType = z.infer<typeof messageTypeSchema>;
 
-/** Направление сообщения относительно нашего номера. */
+/** Direction of the message relative to our number. */
 export const MessageDirection = {
   Inbound: 'inbound',
   Outbound: 'outbound',
@@ -28,7 +28,7 @@ export const messageDirectionSchema = z.enum([
 ]);
 export type MessageDirection = z.infer<typeof messageDirectionSchema>;
 
-/** Статус доставки сообщения. */
+/** Delivery status. */
 export const MessageStatus = {
   Pending: 'pending',
   Sent: 'sent',
@@ -45,7 +45,7 @@ export const messageStatusSchema = z.enum([
 ]);
 export type MessageStatus = z.infer<typeof messageStatusSchema>;
 
-/** Роль пользователя панели. */
+/** User role inside the panel. */
 export const UserRole = {
   Admin: 'admin',
   Operator: 'operator',
@@ -54,8 +54,8 @@ export const userRoleSchema = z.enum([UserRole.Admin, UserRole.Operator]);
 export type UserRole = z.infer<typeof userRoleSchema>;
 
 /**
- * Статус WAHA-сессии (нормализованный набор; WAHA отдаёт строки в верхнем регистре,
- * нормализуем на бэкенде).
+ * Normalized WhatsApp session status. The provider may emit raw strings in
+ * different casings — they are normalized to this set on the backend.
  */
 export const SessionStatus = {
   Starting: 'starting',

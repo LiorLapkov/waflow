@@ -2,8 +2,8 @@ packages:
   - "apps/*"
   - "packages/*"
 
-# pnpm по умолчанию блокирует postinstall-скрипты зависимостей.
-# Разрешаем только нужные: нативная сборка argon2 и загрузка движков Prisma.
+# pnpm blocks postinstall scripts of dependencies by default.
+# Allow the ones we actually need: argon2 native build and Prisma engines.
 allowBuilds:
   '@nestjs/core': true
   '@prisma/client': true

@@ -1,27 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
-import { SessionStatus } from '@dljobs/shared';
+import { SessionStatus } from '@waflow/shared';
 import type { AppEnv } from '../config/env';
 
-/** Информация о сессии: статус (нормализованный) и привязанный телефон. */
+/** Session info: normalized status and the linked phone number. */
 export interface WaSessionInfo {
   status: SessionStatus;
   phone: string | null;
 }
 
-/** Результат старта инстанса — может вернуть QR сразу. */
+/** Start-instance result — may include the QR right away. */
 export interface InstanceStart {
   qr: string | null;
   status: SessionStatus;
 }
 
 /**
- * Клиент Evolution API (Baileys, multi-instance).
+ * Evolution API client (Baileys, multi-instance).
  *
- * Все номера = независимые «instance» на стороне Evolution. У каждого свой
- * QR, своя сессия, свой webhook (на самом деле — глобальный, см. compose).
- * Защита запросов: заголовок `apikey` = EVOLUTION_API_KEY.
+ * Every number is an independent Evolution instance with its own
+ * QR, session, and webhook (which is actually global — see compose).
+ * Request auth: `apikey` header = EVOLUTION_API_KEY.
  */
 @Injectable()
 export class WhatsappService {
@@ -30,9 +30,9 @@ export class WhatsappService {
   private readonly webhookUrl: string;
   private readonly webhookSecret: string;
   /**
-   * Кэш последнего QR-кода per-instance. Evolution отдаёт QR при создании или
-   * через webhook QRCODE_UPDATED — потом этим же endpoint не возвращает повторно.
-   * Кэшируем, чтобы UI мог дёрнуть свежий QR через polling.
+   * Per-instance cache of the last QR. Evolution returns a QR on create or
+   * via the QRCODE_UPDATED webhook — but the same endpoint does not return it again.
+   * We cache it so the polling UI can always fetch a fresh QR.
    */
   private readonly qrCache = new Map<string, string>();
 
@@ -46,19 +46,19 @@ export class WhatsappService {
     this.webhookSecret = config.get('EVOLUTION_WEBHOOK_SECRET', { infer: true });
   }
 
-  /** Кладёт QR в кэш — вызывается из WebhookService при QRCODE_UPDATED. */
+  /** Cache the QR — called from WebhookService on QRCODE_UPDATED. */
   cacheQr(instance: string, qrDataUri: string): void {
     this.qrCache.set(instance, qrDataUri);
   }
 
-  /** Очищает QR (например, после успешного коннекта). */
+  /** Drop the cached QR (e.g. after a successful connect). */
   clearQr(instance: string): void {
     this.qrCache.delete(instance);
   }
 
   /**
-   * Нормализация состояния соединения Baileys в наш SessionStatus.
-   * Evolution: `open` (рабочее), `connecting`, `close`, `qr` или нет инстанса.
+   * Normalize a Baileys connection state into our SessionStatus.
+   * Evolution emits: `open` (working), `connecting`, `close`, `qr`, or no instance.
    */
   static normalizeStatus(raw: string | undefined): SessionStatus {
     switch ((raw ?? '').toLowerCase()) {
@@ -76,7 +76,7 @@ export class WhatsappService {
     }
   }
 
-  /** Конфиг webhook'а, прописываемый per-instance. */
+  /** Per-instance webhook config. */
   private webhookConfig() {
     return {
       enabled: true,
@@ -88,7 +88,7 @@ export class WhatsappService {
     };
   }
 
-  /** Создать новый инстанс с per-instance webhook'ом — Evolution отдаст QR в payload. */
+  /** Create a new instance with a per-instance webhook — Evolution returns the QR in the response. */
   async createInstance(name: string): Promise<InstanceStart> {
     try {
       const { data } = await this.http.post('/instance/create', {
@@ -102,7 +102,7 @@ export class WhatsappService {
       const status = WhatsappService.normalizeStatus(data?.instance?.status ?? 'connecting');
       return { qr, status };
     } catch (err) {
-      // 403/409 = инстанс уже существует. Обновляем webhook и переподключаемся.
+      // 403/409 = instance already exists. Refresh the webhook and reconnect.
       if (axios.isAxiosError(err) && (err.response?.status === 403 || err.response?.status === 409)) {
         await this.setWebhook(name).catch(() => undefined);
         return this.connectInstance(name);
@@ -112,7 +112,7 @@ export class WhatsappService {
     }
   }
 
-  /** Прописать webhook для уже существующего инстанса. */
+  /** Set the webhook on an already-existing instance. */
   async setWebhook(name: string): Promise<void> {
     await this.http
       .post(`/webhook/set/${name}`, { webhook: this.webhookConfig() })
@@ -121,7 +121,7 @@ export class WhatsappService {
       });
   }
 
-  /** Перезапустить подключение существующего инстанса (например, для нового QR). */
+  /** Reconnect an existing instance (e.g. to get a fresh QR). */
   async connectInstance(name: string): Promise<InstanceStart> {
     try {
       const { data } = await this.http.get(`/instance/connect/${name}`);
@@ -133,12 +133,12 @@ export class WhatsappService {
     }
   }
 
-  /** Текущий статус подключения + привязанный телефон. */
+  /** Current connection status + linked phone number. */
   async getSessionInfo(name: string): Promise<WaSessionInfo> {
     try {
       const { data } = await this.http.get(`/instance/connectionState/${name}`);
       const state = data?.instance?.state ?? data?.state;
-      // Телефон вытащим из fetchInstances — там есть owner.id.
+      // Pull the phone from fetchInstances (owner.id field).
       let phone: string | null = null;
       try {
         const list = await this.http.get('/instance/fetchInstances', { params: { instanceName: name } });
@@ -148,7 +148,7 @@ export class WhatsappService {
           phone = me.replace(/@.*$/, '');
         }
       } catch {
-        /* игнорируем — phone остаётся null */
+        /* ignore — phone stays null */
       }
       return { status: WhatsappService.normalizeStatus(state), phone };
     } catch {
@@ -157,8 +157,8 @@ export class WhatsappService {
   }
 
   /**
-   * Свежий QR — сначала пробуем кэш (положили туда либо при создании, либо из
-   * webhook QRCODE_UPDATED), затем дёргаем connect (часто пусто после первого раза).
+   * Fresh QR — try the cache first (populated either on create or by the
+   * QRCODE_UPDATED webhook), then hit /connect (often empty after the first call).
    */
   async getQr(name: string): Promise<string | null> {
     const cached = this.qrCache.get(name);
@@ -168,21 +168,21 @@ export class WhatsappService {
     return qr;
   }
 
-  /** Logout без удаления инстанса. */
+  /** Logout without deleting the instance. */
   async logoutInstance(name: string): Promise<void> {
     await this.http.delete(`/instance/logout/${name}`).catch(() => undefined);
   }
 
-  /** Полное удаление инстанса (выход + удаление состояния). */
+  /** Full instance removal (logout + delete state). */
   async deleteInstance(name: string): Promise<void> {
     await this.logoutInstance(name);
     await this.http.delete(`/instance/delete/${name}`).catch(() => undefined);
   }
 
   /**
-   * Отправить текст. `chatId` — наш формат `<digits>@c.us` или `@g.us`.
-   * Evolution принимает либо jid полностью, либо просто номер (для @c.us).
-   * Возвращает ID сообщения от WhatsApp.
+   * Send a text message. `chatId` is our `<digits>@c.us` / `@g.us` form.
+   * Evolution accepts either a full JID or a bare number (for @c.us).
+   * Returns the WhatsApp message id.
    */
   async sendText(instance: string, chatId: string, text: string): Promise<string | null> {
     const number = chatId.includes('@') ? chatId : `${chatId}`;
@@ -195,8 +195,8 @@ export class WhatsappService {
   }
 
   /**
-   * Скачать медиа сообщения через base64. Используется когда webhook прислал
-   * сообщение без вложенного base64 (по умолчанию мы запрашиваем его явно).
+   * Fetch message media as base64. Used when the webhook delivered the
+   * message without inline base64 (by default we ask for it explicitly).
    */
   async fetchMediaBase64(
     instance: string,
@@ -218,9 +218,9 @@ export class WhatsappService {
   }
 
   /**
-   * Поиск чата по JID в списке чатов инстанса. У Baileys имя контакта обычно
-   * лежит в `pushName` сообщения, а реальный номер можно получить из
-   * `/chat/findContacts/{instance}` или из самих чатов через `/chat/findChats`.
+   * Look up a chat by JID. Baileys typically exposes the contact name in
+   * `pushName` on a message; the real phone number can be pulled from
+   * `/chat/findContacts/{instance}` or via `/chat/findChats`.
    */
   async findChatInfo(
     instance: string,
@@ -246,7 +246,7 @@ export class WhatsappService {
     const root = data as Record<string, unknown>;
     const qr = (root.qrcode as Record<string, unknown> | undefined) ?? (root.qr as Record<string, unknown> | undefined);
     if (!qr) return null;
-    // Evolution отдаёт либо строку base64 (без префикса), либо data: URI.
+    // Evolution returns either a bare base64 string or a data: URI.
     const candidate =
       (qr.base64 as string | undefined) ??
       (qr.code as string | undefined) ??

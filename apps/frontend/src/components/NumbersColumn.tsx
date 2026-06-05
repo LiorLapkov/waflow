@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { UserRole, type WhatsappNumberDto } from '@dljobs/shared';
+import { UserRole, type WhatsappNumberDto } from '@waflow/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { sessionStatusColor, sessionStatusLabel } from '@/lib/format';
@@ -12,7 +12,7 @@ interface Props {
   onSelect: (id: string) => void;
   onLink: (numberId: string) => void;
   onRefresh: () => void;
-  /** Tailwind-класс видимости (на мобиле — отдельный экран). */
+  /** Tailwind visibility class (on mobile — a separate screen). */
   visibilityClass?: string;
 }
 
@@ -36,7 +36,7 @@ export function NumbersColumn({
     setName('');
     setAdding(false);
     onRefresh();
-    onLink(num.id); // сразу открыть QR
+    onLink(num.id); // open the QR right away
   };
 
   return (
@@ -44,14 +44,14 @@ export function NumbersColumn({
       className={`${visibilityClass} h-full w-full flex-col border-black/30 bg-wa-sidebar md:w-72 md:border-r`}
     >
       <header className="flex items-center justify-between px-4 py-3">
-        <span className="font-semibold text-wa-green">Номера</span>
+        <span className="font-semibold text-wa-green">Numbers</span>
         <div className="flex items-center gap-2">
           {isAdmin && (
-            <a href="/admin" className="text-xs text-gray-400 hover:text-gray-200" title="Управление">
+            <a href="/admin" className="text-xs text-gray-400 hover:text-gray-200" title="Admin">
               ⚙
             </a>
           )}
-          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-200" title="Выйти">
+          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-200" title="Sign out">
             ⎋
           </button>
         </div>
@@ -92,7 +92,7 @@ export function NumbersColumn({
           </button>
         ))}
         {numbers.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-gray-500">Нет подключённых номеров</p>
+          <p className="px-4 py-6 text-center text-sm text-gray-500">No numbers connected</p>
         )}
       </div>
 
@@ -104,19 +104,19 @@ export function NumbersColumn({
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Название номера"
+                placeholder="Number label"
                 className="w-full rounded bg-wa-dark px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-wa-green"
               />
               <div className="flex gap-2">
                 <button className="flex-1 rounded bg-wa-green py-1.5 text-sm font-medium text-black">
-                  Создать
+                  Create
                 </button>
                 <button
                   type="button"
                   onClick={() => setAdding(false)}
                   className="rounded px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200"
                 >
-                  Отмена
+                  Cancel
                 </button>
               </div>
             </form>
@@ -125,7 +125,7 @@ export function NumbersColumn({
               onClick={() => setAdding(true)}
               className="w-full rounded bg-wa-panel py-2 text-sm text-gray-200 hover:bg-wa-hover"
             >
-              + Подключить номер
+              + Connect number
             </button>
           )}
         </div>

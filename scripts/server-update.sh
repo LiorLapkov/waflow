@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# Обновление прод-инсталляции на сервере одной командой.
-# Использовать на сервере после `git push` с локальной машины.
+# Single-command update for the production install on the server.
+# Run on the server after a `git push` from your dev machine.
 #
-# Что делает:
-#   1. git pull (тянет свежий код)
-#   2. Пересборка backend + frontend
-#   3. Применение Prisma-миграций (внутри backend Dockerfile)
-#   4. Рестарт обновлённых сервисов
+# What it does:
+#   1. git pull (latest code)
+#   2. Rebuild backend + frontend
+#   3. Apply Prisma migrations (inside the backend Dockerfile CMD)
+#   4. Restart the updated services
 #
-# БД, MinIO-медиа и WhatsApp-сессии (Evolution) сохраняются — перелинковка не нужна.
+# DB, MinIO media and WhatsApp sessions (Evolution) are preserved — no
+# re-linking needed.
 
 set -e
 cd "$(dirname "$0")/.."
 
 if [ ! -f .env ]; then
-  echo "❌ .env не найден. Скопируй с локальной машины." >&2
+  echo "❌ .env not found. Copy it from your dev machine." >&2
   exit 1
 fi
 
@@ -22,20 +23,20 @@ echo "=== git pull ==="
 git pull --ff-only
 
 echo
-echo "=== пересборка backend + frontend ==="
+echo "=== rebuilding backend + frontend ==="
 docker compose -f infra/docker-compose.yml --env-file .env build backend frontend
 
 echo
-echo "=== перезапуск изменённых сервисов ==="
+echo "=== restarting changed services ==="
 docker compose -f infra/docker-compose.yml --env-file .env up -d backend frontend
 
 echo
-echo "=== проверка ==="
+echo "=== sanity check ==="
 sleep 3
 for i in $(seq 1 30); do
   code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/login 2>/dev/null)
   if [ "$code" = "200" ]; then
-    echo "✓ панель отвечает (${i}с)"
+    echo "✓ panel is responding (${i}s)"
     break
   fi
   sleep 1
@@ -44,4 +45,4 @@ done
 echo
 docker compose -f infra/docker-compose.yml --env-file .env ps --format 'table {{.Service}}\t{{.Status}}'
 echo
-echo "Готово. Логи: docker compose -f infra/docker-compose.yml --env-file .env logs -f backend"
+echo "Done. Logs: docker compose -f infra/docker-compose.yml --env-file .env logs -f backend"

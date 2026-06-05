@@ -1,24 +1,24 @@
 /**
- * Парсинг WhatsApp JID (chatId). WhatsApp/Baileys использует несколько форм:
- *  - "79991234567@s.whatsapp.net" — индивидуальный чат, Baileys (Evolution API);
- *  - "79991234567@c.us"           — старая форма (WAHA / whatsapp-web.js);
- *  - "83082031964409@lid"         — LID (Linked Device ID), псевдоним для приватности
- *                                    (когда контакт не сохранён). Это НЕ номер телефона;
- *  - "120363xxxxxxxxxxxx@g.us"    — групповой чат, локальная часть — id группы.
+ * Parse a WhatsApp JID (chatId). WhatsApp/Baileys uses several forms:
+ *  - "79991234567@s.whatsapp.net" — individual chat, Baileys (Evolution API);
+ *  - "79991234567@c.us"           — legacy form (WAHA / whatsapp-web.js);
+ *  - "83082031964409@lid"         — LID (Linked Device ID), a privacy alias
+ *                                    (used when the contact is not saved). NOT a real phone number;
+ *  - "120363xxxxxxxxxxxx@g.us"    — group chat, local part is the group id.
  *
- * Поле `phone` в БД должно содержать ТОЛЬКО реальный номер. Иначе UI добавит к нему `+`
- * и покажет несуществующий «номер» из 14–15 цифр LID.
+ * `phone` in the DB must contain ONLY a real number. Otherwise the UI will
+ * prefix "+" and display a non-existent 14–15-digit LID as a phone.
  */
 export interface ParsedJid {
-  /** Локальная часть до `@` (телефон / LID / id группы). */
+  /** Local part before `@` (phone / LID / group id). */
   local: string;
-  /** Доменная часть после `@`: `c.us`, `lid`, `g.us`, ... */
+  /** Domain part after `@`: `c.us`, `lid`, `g.us`, … */
   domain: string;
-  /** Реальный номер телефона (без `+`, цифры) — только для `@c.us`. Иначе null. */
+  /** Real phone number (digits, no `+`) — only for `@c.us`. Null otherwise. */
   phone: string | null;
-  /** Это LID-псевдоним (не настоящий номер). */
+  /** This is a LID alias (not a real number). */
   isLid: boolean;
-  /** Это групповой чат. */
+  /** This is a group chat. */
   isGroup: boolean;
 }
 
@@ -32,17 +32,17 @@ export function parseJid(jid: string): ParsedJid {
 }
 
 /**
- * Извлечь номер из строки `name` WAHA-чата.
- * WAHA для LID-чатов часто кладёт сюда форматированный номер: "+972 53-424-7634".
- * Возвращаем { phone (только цифры), display (исходная строка) } если похоже на номер,
- * иначе name трактуется как имя контакта.
+ * Extract a phone number from a chat `name` returned by the provider.
+ * For LID chats the provider often puts a formatted number here, e.g. "+972 53-424-7634".
+ * Return { phone (digits only), display (original string) } if it looks like a number,
+ * otherwise the value is treated as a contact name.
  */
 export function extractPhoneFromName(
   name: string | null | undefined,
 ): { phone: string | null; display: string | null } {
   if (!name) return { phone: null, display: null };
   const trimmed = name.trim();
-  // Эвристика: начинается с "+" и содержит ≥ 7 цифр → это номер
+  // Heuristic: starts with "+" and has at least 7 digits → looks like a number
   if (trimmed.startsWith('+')) {
     const digits = trimmed.replace(/\D/g, '');
     if (digits.length >= 7 && digits.length <= 18) {

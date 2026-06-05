@@ -5,7 +5,7 @@ import {
   type CreateNumberDto,
   type QrDto,
   type WhatsappNumberDto,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { CurrentUser, Roles } from '../common/decorators';
 import type { AuthUser } from '../common/types';
@@ -23,7 +23,7 @@ export class NumbersController {
     return this.numbers.list(user);
   }
 
-  // Создание/линковка нового номера — только Admin.
+  // Creating / linking a new number — Admin only.
   @Roles(UserRole.Admin)
   @Post()
   create(

@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // @dljobs/shared — workspace-пакет, транспилируем его исходники.
-  transpilePackages: ['@dljobs/shared'],
+  // @waflow/shared is a workspace package — transpile its source.
+  transpilePackages: ['@waflow/shared'],
   output: 'standalone',
 };
 

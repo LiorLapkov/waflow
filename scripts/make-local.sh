@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Возврат к локальному режиму (только localhost, без LAN).
-# Полезно когда демо/демо-сессия закончилась.
+# Revert the stack to localhost-only mode (undo make-lan.sh).
+# Useful when the demo session is over.
 
 set -e
 cd "$(dirname "$0")/.."
 
 if [ ! -f .env ]; then
-  echo "❌ .env не найден" >&2
+  echo "❌ .env not found" >&2
   exit 1
 fi
 
@@ -28,8 +28,8 @@ upsert() {
 upsert FRONTEND_ORIGIN "http://localhost:$FRONT_PORT"
 upsert NEXT_PUBLIC_API_URL "http://localhost:$BACK_PORT"
 
-echo "✓ .env вернули в локальный режим"
-echo "=== Пересборка ==="
+echo "✓ .env reverted to localhost-only mode"
+echo "=== Rebuilding ==="
 docker compose -f infra/docker-compose.yml --env-file .env up -d --build backend frontend
 echo
-echo "Открой: http://localhost:$FRONT_PORT"
+echo "Open: http://localhost:$FRONT_PORT"

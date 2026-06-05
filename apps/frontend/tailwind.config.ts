@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Палитра в стиле WhatsApp.
+        // WhatsApp-style palette.
         wa: {
           green: '#25D366',
           teal: '#075E54',

@@ -13,7 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly prisma: PrismaService,
   ) {
     super({
-      // Принимаем токен из cookie `token` либо из заголовка Authorization: Bearer.
+      // Accept the token from the `token` cookie or the Authorization: Bearer header.
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: { cookies?: Record<string, string> }) => req?.cookies?.token ?? null,
         ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthUser> {
-    // Сверяемся с БД — пользователь мог быть удалён после выдачи токена.
+    // Re-check the DB — the user may have been deleted after the token was issued.
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user) {
       throw new UnauthorizedException();

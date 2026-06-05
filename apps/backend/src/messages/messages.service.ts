@@ -8,7 +8,7 @@ import {
   type MessageDto,
   type SendMessageDto,
   type WahaMessagePayload,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import type { WhatsappNumber } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,22 +35,22 @@ export class MessagesService {
     private readonly realtime: RealtimeGateway,
   ) {}
 
-  /** Превью для списка чатов. Контент трактуется только как данные. */
+  /** Preview for the chat list. Content is treated only as data. */
   private preview(type: MessageType, text: string | null): string {
     if (type !== MessageType.Text) {
       const labels: Record<string, string> = {
-        image: '📷 Фото',
-        video: '🎥 Видео',
-        voice: '🎤 Голосовое',
-        document: '📄 Документ',
+        image: '📷 Photo',
+        video: '🎥 Video',
+        voice: '🎤 Voice',
+        document: '📄 Document',
       };
-      return labels[type] ?? '[медиа]';
+      return labels[type] ?? '[media]';
     }
     return (text ?? '').slice(0, PREVIEW_LIMIT);
   }
 
   private async upsertChat(numberId: string, waChatId: string, name: string | null | undefined) {
-    // phone заполняем только для @c.us (реальный номер). Для @lid/@g.us — null.
+    // phone is filled only for @c.us (a real number). For @lid/@g.us it stays null.
     const { phone } = parseJid(waChatId);
     return this.prisma.chat.upsert({
       where: { numberId_waChatId: { numberId, waChatId } },
@@ -60,8 +60,8 @@ export class MessagesService {
   }
 
   /**
-   * Best-effort резолв реального номера для LID-чата через Evolution-контакты.
-   * Без номера запись кандидата в CRM бесполезна.
+   * Best-effort resolution of the real phone for a LID chat via Evolution contacts.
+   * Without a number a contact record is much less useful.
    */
   private async tryResolveLid(
     instance: string,
@@ -82,13 +82,13 @@ export class MessagesService {
   }
 
   /**
-   * Обработка входящего сообщения из Evolution webhook (Baileys).
-   * Идемпотентна по (numberId, waMessageId).
-   * Медиа: используем base64 из payload (если включено), иначе запрашиваем явно.
+   * Handle an inbound message from the Evolution webhook (Baileys).
+   * Idempotent on (numberId, waMessageId).
+   * Media: prefer the inline base64 from the payload; otherwise fetch explicitly.
    */
   async ingestInbound(number: WhatsappNumber, payload: WahaMessagePayload): Promise<void> {
     const m = parseInbound(payload);
-    // Игнорируем собственные исходящие — мы их пишем сами в sendText.
+    // Skip our own outbound messages — sendText already records them.
     if (m.fromMe) return;
 
     const chat = await this.upsertChat(number.id, m.waChatId, m.pushName);
@@ -102,7 +102,7 @@ export class MessagesService {
         if (m.base64) {
           buffer = Buffer.from(m.base64, 'base64');
         } else {
-          // Дёрнем явный endpoint Evolution для скачивания.
+          // Fall back to Evolution's explicit download endpoint.
           const dl = await this.waha.fetchMediaBase64(number.wahaSession, {
             id: m.waMessageId,
             remoteJid: m.waChatId,
@@ -128,7 +128,7 @@ export class MessagesService {
           mediaId = media.id;
         }
       } catch (err) {
-        this.logger.warn(`Не удалось сохранить медиа ${m.waMessageId}: ${(err as Error).message}`);
+        this.logger.warn(`Failed to persist media ${m.waMessageId}: ${(err as Error).message}`);
       }
     }
 
@@ -162,14 +162,14 @@ export class MessagesService {
       this.realtime.emitMessageNew({ numberId: number.id, message: toMessageDto(message) });
       this.realtime.emitChatUpdated({ numberId: number.id, chat: toChatDto(updatedChat) });
 
-      // Для LID-чата без номера — фоновая попытка резолва.
+      // For a LID chat without a phone — try to resolve it in the background.
       if (!updatedChat.phone && parseJid(m.waChatId).isLid) {
         void this.tryResolveLid(number.wahaSession, number.id, updatedChat.id, m.waChatId).catch(
           (e) => this.logger.warn(`tryResolveLid: ${(e as Error).message}`),
         );
       }
     } catch (err) {
-      // Дубль ретрая webhook'а — уникальный индекс (numberId, waMessageId).
+      // Duplicate webhook retry — caught by the unique (numberId, waMessageId) index.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         return;
       }
@@ -177,14 +177,14 @@ export class MessagesService {
     }
   }
 
-  /** Ответ оператора (только текст в MVP). Никаких рассылок — лишь ответ в чат. */
+  /** Operator reply (text-only in MVP). No broadcasts — replies inside a chat only. */
   async sendText(user: AuthUser, dto: SendMessageDto): Promise<MessageDto> {
     const chat = await this.prisma.chat.findUnique({
       where: { id: dto.chatId },
       include: { number: true },
     });
     if (!chat) {
-      throw new NotFoundException('Чат не найден');
+      throw new NotFoundException('Chat not found');
     }
     await this.numbers.assertAccess(user, chat.numberId);
 
@@ -226,7 +226,7 @@ export class MessagesService {
   ): Promise<MessageDto[]> {
     const chat = await this.prisma.chat.findUnique({ where: { id: chatId } });
     if (!chat) {
-      throw new NotFoundException('Чат не найден');
+      throw new NotFoundException('Chat not found');
     }
     await this.numbers.assertAccess(user, chat.numberId);
 
@@ -243,14 +243,14 @@ export class MessagesService {
     return rows.reverse().map(toMessageDto);
   }
 
-  /** Принудительный резолв LID → реальный номер и имя (кнопка «Уточнить номер»). */
+  /** Force-resolve a LID into a real phone/name ("Resolve number" button). */
   async resolveChatInfo(user: AuthUser, chatId: string): Promise<ChatDto> {
     const chat = await this.prisma.chat.findUnique({
       where: { id: chatId },
       include: { number: true },
     });
     if (!chat) {
-      throw new NotFoundException('Чат не найден');
+      throw new NotFoundException('Chat not found');
     }
     await this.numbers.assertAccess(user, chat.numberId);
     await this.tryResolveLid(chat.number.wahaSession, chat.numberId, chat.id, chat.waChatId);
@@ -261,7 +261,7 @@ export class MessagesService {
   async markRead(user: AuthUser, chatId: string): Promise<void> {
     const chat = await this.prisma.chat.findUnique({ where: { id: chatId } });
     if (!chat) {
-      throw new NotFoundException('Чат не найден');
+      throw new NotFoundException('Chat not found');
     }
     await this.numbers.assertAccess(user, chat.numberId);
     const updated = await this.prisma.chat.update({

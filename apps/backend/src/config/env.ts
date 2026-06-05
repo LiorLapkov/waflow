@@ -1,19 +1,19 @@
 import { z } from 'zod';
 
-/** Схема и валидация переменных окружения бэкенда. Падаем рано при отсутствии секретов. */
+/** Backend env schema and validation. We fail early when secrets are missing. */
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   BACKEND_PORT: z.coerce.number().int().positive().default(3001),
   BACKEND_PUBLIC_URL: z.string().url(),
   /**
-   * Список разрешённых origin'ов фронта (CORS). Разделитель — запятая.
-   * Пример для демо: "http://localhost:3002,http://192.168.1.5:3002".
+   * Allowed frontend origins (CORS). Comma-separated.
+   * Example: "http://localhost:3002,http://192.168.1.5:3002".
    */
   FRONTEND_ORIGIN: z.string().min(1),
 
   DATABASE_URL: z.string().min(1),
 
-  JWT_SECRET: z.string().min(16, 'JWT_SECRET слишком короткий'),
+  JWT_SECRET: z.string().min(16, 'JWT_SECRET is too short'),
   JWT_EXPIRES_IN: z.string().default('12h'),
 
   ADMIN_USERNAME: z.string().min(1),
@@ -21,7 +21,7 @@ const envSchema = z.object({
 
   EVOLUTION_BASE_URL: z.string().url(),
   EVOLUTION_API_KEY: z.string().min(8),
-  /** Секрет, который Evolution кладёт в поле `apikey` каждого webhook-payload'а. */
+  /** Secret Evolution puts into the `apikey` field of every webhook payload. */
   EVOLUTION_WEBHOOK_SECRET: z.string().min(8),
 
   MINIO_ENDPOINT: z.string().url(),
@@ -37,7 +37,7 @@ export function validateEnv(raw: Record<string, unknown>): AppEnv {
   const parsed = envSchema.safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
-    throw new Error(`Некорректные переменные окружения:\n${issues}`);
+    throw new Error(`Invalid environment configuration:\n${issues}`);
   }
   return parsed.data;
 }

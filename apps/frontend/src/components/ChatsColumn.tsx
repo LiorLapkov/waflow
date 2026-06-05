@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChatDto } from '@dljobs/shared';
+import type { ChatDto } from '@waflow/shared';
 import { formatTime } from '@/lib/format';
 import { chatAvatarLetter, chatTitle } from '@/lib/chat-display';
 
@@ -26,7 +26,7 @@ export function ChatsColumn({
       <div
         className={`${visibilityClass} h-full w-full items-center justify-center border-black/30 bg-wa-sidebar text-sm text-gray-500 md:w-80 md:border-r`}
       >
-        Выберите номер
+        Select a number
       </div>
     );
   }
@@ -40,12 +40,12 @@ export function ChatsColumn({
           <button
             onClick={onBack}
             className="rounded p-1 text-gray-400 hover:bg-wa-hover hover:text-gray-100 md:hidden"
-            aria-label="Назад"
+            aria-label="Back"
           >
             ←
           </button>
         )}
-        Чаты
+        Chats
       </header>
       <div className="flex-1 overflow-y-auto">
         {chats.map((c) => (
@@ -76,7 +76,7 @@ export function ChatsColumn({
           </button>
         ))}
         {chats.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-gray-500">Пока нет входящих сообщений</p>
+          <p className="px-4 py-6 text-center text-sm text-gray-500">No incoming messages yet</p>
         )}
       </div>
     </div>

@@ -10,8 +10,8 @@ export class ApiError extends Error {
 }
 
 /**
- * Обёртка над fetch к бэкенду. JWT хранится в httpOnly cookie, поэтому всегда
- * шлём credentials. 401 пробрасываем как ApiError для редиректа на логин.
+ * Wrapper around fetch. The JWT lives in an httpOnly cookie, so we always
+ * send credentials. 401 is re-thrown as ApiError so the UI can redirect to login.
  */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_PREFIX}${path}`, {
@@ -28,7 +28,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const data = await res.json();
       message = data?.message ?? message;
     } catch {
-      // тело не JSON — оставляем statusText
+      // body is not JSON — keep statusText
     }
     throw new ApiError(res.status, message);
   }
@@ -47,5 +47,5 @@ export const api = {
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
 
-/** URL медиа-прокси для <img>/<audio>/<video> src. Относительный — same-origin. */
+/** Media-proxy URL for <img>/<audio>/<video>. Relative — same-origin. */
 export const mediaUrl = (relativeUrl: string): string => `${API_PREFIX}${relativeUrl}`;

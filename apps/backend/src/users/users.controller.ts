@@ -6,14 +6,14 @@ import {
   type AssignNumbersDto,
   type CreateUserDto,
   type UserDto,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { Roles } from '../common/decorators';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { UsersService } from './users.service';
 
-// Управление пользователями — только Admin.
+// User management — Admin only.
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.Admin)
 @Controller('users')

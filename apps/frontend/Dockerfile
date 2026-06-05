@@ -1,4 +1,4 @@
-# Frontend (Next.js, standalone). Контекст сборки — корень репозитория.
+# Frontend (Next.js standalone). Build context is the repo root.
 FROM node:22-bookworm-slim AS builder
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
@@ -16,8 +16,8 @@ RUN pnpm install --no-frozen-lockfile
 COPY packages/shared packages/shared
 COPY apps/frontend apps/frontend
 
-RUN pnpm --filter @dljobs/shared build \
-  && pnpm --filter @dljobs/frontend build
+RUN pnpm --filter @waflow/shared build \
+  && pnpm --filter @waflow/frontend build
 
 # ── Runtime ──────────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner
@@ -26,7 +26,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 
-# Standalone-сборка тащит только нужные node_modules.
+# The standalone build bundles only the node_modules it actually needs.
 COPY --from=builder /app/apps/frontend/.next/standalone ./
 COPY --from=builder /app/apps/frontend/.next/static ./apps/frontend/.next/static
 

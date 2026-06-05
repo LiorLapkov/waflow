@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-/** Требует валидный JWT (стратегия 'jwt'). */
+/** Requires a valid JWT (the 'jwt' Passport strategy). */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {}

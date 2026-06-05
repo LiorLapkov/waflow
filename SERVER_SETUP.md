@@ -1,50 +1,52 @@
-# Развёртывание на Ubuntu-сервере
+# Deploying waflow on an Ubuntu server
 
-Полная пошаговая инструкция для запуска DLJobs WhatsApp CRM на собственном Ubuntu-сервере (тестировано на Ubuntu 24.04 LTS, x86_64).
+Step-by-step guide to running waflow on your own Linux server. Tested on
+Ubuntu 24.04 LTS (x86_64). Should work on 22.04 LTS as well.
 
-## Что получится
+## What you get
 
-- Стек живёт на твоём сервере 24/7
-- Доступ снаружи через **Cloudflare Tunnel** (бесплатный HTTPS, без статического IP)
-- Обновления — одной командой `./scripts/server-update.sh`
-- **Evolution API** (Baileys) на нативном Linux x86_64 — поддерживает несколько номеров без лицензии
+- Stack runs on your machine 24/7
+- External access via **Cloudflare Tunnel** (free HTTPS, no static IP needed)
+- Updates with a single `./scripts/server-update.sh`
+- **Evolution API** (Baileys) on native Linux x86_64 — multiple numbers, no
+  licence cost
 
-## 1. Подготовка сервера (один раз)
+## 1. Prepare the server (one-time)
 
-### 1.1. Docker и Compose
+### 1.1. Docker + Compose
 
 ```bash
-# Установка Docker Engine
+# Install Docker Engine
 curl -fsSL https://get.docker.com | sudo sh
 
-# Добавить себя в группу docker (чтобы не писать sudo каждый раз)
+# Allow yourself to run docker without sudo
 sudo usermod -aG docker $USER
 
-# ⚠️ Перелогиниться (выйти и зайти по ssh заново)
+# ⚠️ Log out and back in for the group change to apply
 exit
 ```
 
-После перелогина проверь:
+After re-login, verify:
 ```bash
 docker --version
 docker compose version
 ```
 
-### 1.2. Запретить серверу засыпать (для ноутбука)
+### 1.2. Prevent the machine from sleeping (laptops in particular)
 
 ```bash
-# Не уходить в sleep
+# Disable all sleep targets
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
-# Если это ноут с закрытой крышкой — не выключаться при закрытии
+# If it's a laptop with the lid usually closed:
 sudo sed -i 's/#HandleLidSwitch=suspend/HandleLidSwitch=ignore/' /etc/systemd/logind.conf
 sudo systemctl restart systemd-logind
 
-# Docker должен сам стартовать после ребута
+# Make sure Docker comes back automatically after reboot
 sudo systemctl enable docker
 ```
 
-### 1.3. Cloudflare Tunnel
+### 1.3. cloudflared
 
 ```bash
 curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb
@@ -52,98 +54,102 @@ sudo dpkg -i /tmp/cloudflared.deb
 cloudflared --version
 ```
 
-## 2. Получить код
+## 2. Get the code
 
 ```bash
 cd ~
-git clone https://github.com/<твой-username>/whatsappFlow.git
-cd whatsappFlow
+git clone https://github.com/<your-user>/waflow.git
+cd waflow
 ```
 
-(Замени `<твой-username>` на свой ник на GitHub.)
+(Replace `<your-user>` with the GitHub account where the repo lives.)
 
-## 3. Перенести `.env`
+## 3. Bring in your `.env`
 
-`.env` содержит секреты — в репозиторий не коммитится. Перенести с локального Mac:
+`.env` contains secrets — never committed. Transfer it from your dev machine:
 
-**Вариант A — флешка** (как ты планировал):
-- На Mac скопировать `/Users/lior/Desktop/whatsappFlow/.env` на флешку
-- На сервере положить в `~/whatsappFlow/.env`
-- `chmod 600 ~/whatsappFlow/.env`
+**Option A — USB stick:**
+- Copy `.env` from your dev machine onto a stick
+- On the server: place it at `~/waflow/.env`
+- `chmod 600 ~/waflow/.env`
 
-**Вариант B — scp**:
+**Option B — scp from your dev machine:**
 ```bash
-# С Mac
-scp /Users/lior/Desktop/whatsappFlow/.env user@server-ip:~/whatsappFlow/.env
-ssh user@server-ip 'chmod 600 ~/whatsappFlow/.env'
+scp /path/to/local/.env user@server-ip:~/waflow/.env
+ssh user@server-ip 'chmod 600 ~/waflow/.env'
 ```
 
-**Важно**: после переноса проверь что `BACKEND_PUBLIC_URL=http://backend:3001` (это внутренний адрес контейнеров — менять не нужно).
+**Important:** keep `BACKEND_PUBLIC_URL=http://backend:3001` — that's the
+internal container address and shouldn't change.
 
-## 4. Первый запуск
+## 4. First boot
 
 ```bash
-cd ~/whatsappFlow
+cd ~/waflow
 docker compose -f infra/docker-compose.yml --env-file .env up -d --build
 ```
 
-Первая сборка займёт 5–10 минут (Docker подтянет образы + соберёт backend и frontend).
+First build takes 5–10 minutes (Docker pulls images + builds backend + frontend).
 
-Проверка что всё ок:
+Sanity check:
 ```bash
 docker compose -f infra/docker-compose.yml --env-file .env ps
 ```
-Все сервисы должны быть `Up` (postgres, minio — `healthy`).
+All services should be `Up`; postgres/minio also `healthy`.
 
-Проверка веб-доступа локально:
+Confirm the panel loads locally:
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/healthz   # ожидаем 200
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/login     # ожидаем 200
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/healthz   # 200
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/login     # 200
 ```
 
 ## 5. Cloudflare Tunnel
 
-### Quick Tunnel (без аккаунта, временный URL)
+### Quick Tunnel (no account, ephemeral URL)
 
 ```bash
 cloudflared tunnel --url http://localhost:8080
 ```
 
-В выводе появится `https://<рандом>.trycloudflare.com` — это твой публичный URL. **Пока процесс жив — туннель работает.** Открой в браузере с любого устройства.
+In the output you'll see `https://<random>.trycloudflare.com` — that's your
+public URL. **As long as this process is alive, the tunnel works.** Open the
+URL on any device.
 
-⚠️ URL меняется при каждом перезапуске. Для прода — см. следующий раздел.
+⚠️ The URL changes every time you restart the tunnel. For production use the
+named-tunnel setup below.
 
-### Postоянный URL (рекомендую для прода)
+### Persistent URL (recommended for prod)
 
-Нужен **домен** (можно купить за $10/год на Namecheap / GoDaddy / Cloudflare Registrar).
+You need a **domain name** (≈ $10/year on Namecheap, GoDaddy, Cloudflare
+Registrar, etc.).
 
 ```bash
-# Логин в Cloudflare (откроет браузер с подтверждением)
+# Log in to Cloudflare (opens a browser tab to authorise)
 cloudflared tunnel login
 
-# Создать туннель
-cloudflared tunnel create dljobs-crm
+# Create the tunnel
+cloudflared tunnel create waflow
 
-# Привязать к домену (например crm.example.com)
-cloudflared tunnel route dns dljobs-crm crm.example.com
+# Bind it to a hostname (e.g. inbox.example.com)
+cloudflared tunnel route dns waflow inbox.example.com
 
-# Создать конфиг
+# Create the config
 sudo mkdir -p /etc/cloudflared
 sudo nano /etc/cloudflared/config.yml
 ```
 
-Содержимое `/etc/cloudflared/config.yml`:
+`/etc/cloudflared/config.yml`:
 ```yaml
-tunnel: dljobs-crm
-credentials-file: /home/<твой-user>/.cloudflared/<TUNNEL_ID>.json
+tunnel: waflow
+credentials-file: /home/<your-user>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  - hostname: crm.example.com
+  - hostname: inbox.example.com
     service: http://localhost:8080
   - service: http_status:404
 ```
 
-Поставить как сервис (авто-старт при ребуте):
+Install as a systemd service (auto-start on boot):
 ```bash
 sudo cloudflared service install
 sudo systemctl start cloudflared
@@ -151,80 +157,89 @@ sudo systemctl enable cloudflared
 sudo systemctl status cloudflared
 ```
 
-Готово — `https://crm.example.com` работает 24/7.
+Done — `https://inbox.example.com` is now your panel, 24/7.
 
-## 6. Линковка WhatsApp-номеров
+## 6. Linking WhatsApp numbers
 
-1. Открой панель — `http://localhost:8080` (с сервера) или `https://<твой-туннель>` (с любого устройства)
-2. Войди как админ (логин/пароль из `.env`: `ADMIN_USERNAME` / `ADMIN_PASSWORD`)
-3. **«+ Подключить номер»** → задай название → отсканируй QR с телефона WhatsApp → **Связанные устройства → Привязать устройство**
-4. Повтори для каждого из 5 номеров
+1. Open the panel at `http://localhost:8080` (from the server) or your tunnel
+   URL (from any device).
+2. Log in as admin (credentials = `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`).
+3. Hit **"+ Connect number"** → give it a name → scan the QR with your phone
+   (**WhatsApp → Linked devices → Link a device**).
+4. Repeat for each number.
 
-Все номера автоматически назначаются всем операторам (это поведение можно изменить в `/admin`).
+Any number you create later is automatically visible to every operator. You
+can narrow that down per operator in `/admin`.
 
-## 7. Обновление кода после правок
+## 7. Updating after code changes
 
-На локальной машине:
+On the dev machine:
 ```bash
 git add .
-git commit -m "feat: что-то"
+git commit -m "feat: something"
 git push
 ```
 
-На сервере:
+On the server:
 ```bash
-cd ~/whatsappFlow
+cd ~/waflow
 ./scripts/server-update.sh
 ```
 
-Скрипт сам сделает `git pull`, пересоберёт backend/frontend и перезапустит контейнеры. БД и сессии WhatsApp сохраняются — пере-линковка не нужна.
+The script does `git pull`, rebuilds backend/frontend, and restarts those
+containers. The DB and WhatsApp sessions are preserved — no re-linking
+required.
 
-## 8. Бэкап (раз настроить — забыть)
+## 8. Backups (set once, forget)
 
-В кроне раз в день — дамп Postgres и сессии Evolution в архив:
+Daily dump of Postgres + Evolution session state:
 
 ```bash
-sudo nano /etc/cron.daily/dljobs-backup
+sudo nano /etc/cron.daily/waflow-backup
 ```
 
-Содержимое:
 ```bash
 #!/bin/bash
-BACKUP_DIR=/home/<твой-user>/dljobs-backups
+BACKUP_DIR=/home/<your-user>/waflow-backups
 mkdir -p $BACKUP_DIR
 DATE=$(date +%Y%m%d_%H%M%S)
-docker exec infra-postgres-1 pg_dump -U dljobs dljobs | gzip > $BACKUP_DIR/db_$DATE.sql.gz
+docker exec infra-postgres-1 pg_dump -U waflow waflow | gzip > $BACKUP_DIR/db_$DATE.sql.gz
 docker run --rm -v infra_evolution_instances:/data -v $BACKUP_DIR:/backup alpine \
   tar czf /backup/evolution_$DATE.tar.gz -C /data .
-# хранить последние 14 дней
+# keep the last 14 days
 find $BACKUP_DIR -name '*.gz' -mtime +14 -delete
 ```
 
 ```bash
-sudo chmod +x /etc/cron.daily/dljobs-backup
+sudo chmod +x /etc/cron.daily/waflow-backup
 ```
 
-Можно сразу залить эти бэкапы в облако (Google Drive / Backblaze B2) через `rclone` — но это уже опционально.
+Push these to remote storage (Google Drive / Backblaze B2) with `rclone` if
+you want off-site copies — optional.
 
-## 9. Если что-то не работает
+## 9. Troubleshooting
 
 ```bash
-# Логи в реальном времени
+# Tail logs
 docker compose -f infra/docker-compose.yml --env-file .env logs -f backend
 docker compose -f infra/docker-compose.yml --env-file .env logs -f evolution
 
-# Перезапустить только один сервис
+# Restart one service
 docker compose -f infra/docker-compose.yml --env-file .env restart backend
 
-# Полный рестарт всех
+# Restart everything
 docker compose -f infra/docker-compose.yml --env-file .env restart
 
-# Освободить место (удалить старые образы)
+# Free disk space (remove dangling images)
 docker system prune -f
 ```
 
-## Что меняется потом
+## Common changes later
 
-- **Хочешь сменить пароль админа?** Удали юзера в Postgres (`DELETE FROM users WHERE username='lior'`), смени `ADMIN_PASSWORD` в `.env`, перезапусти backend — пересоздастся.
-- **Добавить операторов?** В UI на `/admin`.
-- **Поменять секреты?** Замени в `.env`, перезапусти все: `docker compose ... up -d --force-recreate`. Существующие сессии нужно перелинковать.
+- **Change the admin password?** Delete the user in Postgres
+  (`DELETE FROM users WHERE username='lior'`), update `ADMIN_PASSWORD` in
+  `.env`, restart the backend — it'll be recreated.
+- **Add operators?** In the UI at `/admin`.
+- **Rotate secrets?** Update `.env`, then
+  `docker compose ... up -d --force-recreate`. Existing WhatsApp sessions
+  will need re-linking.

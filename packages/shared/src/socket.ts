@@ -1,7 +1,7 @@
 import type { ChatDto, MessageDto, QrDto } from './dto.js';
 import type { SessionStatus } from './enums.js';
 
-/** Имена Socket.io событий (сервер → клиент). */
+/** Socket.io event names (server → client). */
 export const SocketEvent = {
   MessageNew: 'message:new',
   ChatUpdated: 'chat:updated',
@@ -10,29 +10,29 @@ export const SocketEvent = {
 } as const;
 export type SocketEventName = (typeof SocketEvent)[keyof typeof SocketEvent];
 
-/** Payload `message:new`. */
+/** `message:new` payload. */
 export interface MessageNewPayload {
   numberId: string;
   message: MessageDto;
 }
 
-/** Payload `chat:updated` (превью/непрочитанные изменились). */
+/** `chat:updated` payload (preview / unread changed). */
 export interface ChatUpdatedPayload {
   numberId: string;
   chat: ChatDto;
 }
 
-/** Payload `session:status`. */
+/** `session:status` payload. */
 export interface SessionStatusPayload {
   numberId: string;
   status: SessionStatus;
   phone?: string | null;
 }
 
-/** Payload `session:qr`. */
+/** `session:qr` payload. */
 export type SessionQrPayload = QrDto;
 
-/** Карта серверных событий для типизации Socket.io. */
+/** Server-emitted event map for Socket.io typing. */
 export interface ServerToClientEvents {
   [SocketEvent.MessageNew]: (p: MessageNewPayload) => void;
   [SocketEvent.ChatUpdated]: (p: ChatUpdatedPayload) => void;

@@ -1,8 +1,8 @@
-import { MessageType } from '@dljobs/shared';
+import { MessageType } from '@waflow/shared';
 import { detectMessageType, extractMediaMeta, extractText } from './message.mapper';
 
 describe('detectMessageType', () => {
-  it('распознаёт типы Baileys', () => {
+  it('detects Baileys message types', () => {
     expect(detectMessageType({ conversation: 'hi' })).toBe(MessageType.Text);
     expect(detectMessageType({ extendedTextMessage: { text: 'hi' } })).toBe(MessageType.Text);
     expect(detectMessageType({ imageMessage: {} })).toBe(MessageType.Image);
@@ -16,7 +16,7 @@ describe('detectMessageType', () => {
 });
 
 describe('extractText', () => {
-  it('достаёт текст из разных полей', () => {
+  it('extracts text from various fields', () => {
     expect(extractText({ conversation: 'hello' })).toBe('hello');
     expect(extractText({ extendedTextMessage: { text: 'long' } })).toBe('long');
     expect(extractText({ imageMessage: { caption: 'caption' } })).toBe('caption');
@@ -28,7 +28,7 @@ describe('extractText', () => {
 });
 
 describe('extractMediaMeta', () => {
-  it('возвращает mime и fileName', () => {
+  it('returns mime and fileName', () => {
     expect(extractMediaMeta({ imageMessage: { mimetype: 'image/png' } })).toEqual({
       mimeType: 'image/png',
       fileName: null,

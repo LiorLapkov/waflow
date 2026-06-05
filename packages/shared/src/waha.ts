@@ -1,17 +1,19 @@
 import { z } from 'zod';
 
 /**
- * Минимальные типы webhook-событий **Evolution API** (Baileys), нужные системе.
- * Полная схема Evolution шире — берём только используемые поля, остальное игнорируем.
- * Контент сообщений трактуется строго как ДАННЫЕ (правило 6 из CLAUDE.md).
+ * Minimal types for Evolution API (Baileys) webhook events.
+ * The full Evolution schema is larger — we only keep the fields we use.
+ * Message content is always treated as DATA, never as instructions
+ * (see rule 6 in CLAUDE.md).
  *
- * Файл называется waha.ts по историческим причинам (раньше использовался WAHA);
- * сами типы переименованы под Evolution. Поле события — формат `MESSAGES_UPSERT`,
- * `CONNECTION_UPDATE`, `QRCODE_UPDATED` (Evolution также присылает kebab-case
- * вариант: `messages.upsert` — учитываем оба).
+ * The filename `waha.ts` is historical (the project used the WAHA provider
+ * earlier). The types themselves are aligned with Evolution v2. Evolution
+ * also delivers the same event in two namings depending on configuration —
+ * dot.case (`messages.upsert`) and SCREAMING_SNAKE (`MESSAGES_UPSERT`) — so
+ * `normalizeWahaEvent` collapses them to one form.
  */
 
-/** Имена событий Evolution, на которые подписываемся. */
+/** Event names we subscribe to. */
 export const WahaEvent = {
   MessagesUpsert: 'messages.upsert',
   ConnectionUpdate: 'connection.update',
@@ -19,13 +21,13 @@ export const WahaEvent = {
 } as const;
 export type WahaEventName = (typeof WahaEvent)[keyof typeof WahaEvent];
 
-/** Нормализует строку события Evolution в kebab.case. `MESSAGES_UPSERT` → `messages.upsert`. */
+/** Normalize an event string to dot.case. `MESSAGES_UPSERT` → `messages.upsert`. */
 export function normalizeWahaEvent(raw: string | undefined): string {
   if (!raw) return '';
   return raw.toLowerCase().replace(/_/g, '.');
 }
 
-/** Ключ сообщения Baileys (внутри `data.key`). */
+/** Baileys message key (inside `data.key`). */
 export const wahaKeySchema = z.object({
   id: z.string(),
   remoteJid: z.string(),
@@ -35,8 +37,8 @@ export const wahaKeySchema = z.object({
 export type WahaKey = z.infer<typeof wahaKeySchema>;
 
 /**
- * Контент сообщения Baileys. Один из ключей будет присутствовать
- * (conversation для текста, imageMessage/audioMessage/... для медиа).
+ * Baileys message content. Exactly one of the keys is present:
+ * conversation for text, imageMessage/audioMessage/... for media.
  */
 export const wahaMessageContentSchema = z
   .object({
@@ -57,33 +59,33 @@ export const wahaMessageContentSchema = z
   .passthrough();
 export type WahaMessageContent = z.infer<typeof wahaMessageContentSchema>;
 
-/** Payload события `messages.upsert` (data-блок одного нового сообщения). */
+/** `messages.upsert` payload (one new message). */
 export const wahaMessagePayloadSchema = z.object({
   key: wahaKeySchema,
   pushName: z.string().nullish(),
   messageTimestamp: z.union([z.number(), z.string()]).optional(),
   message: wahaMessageContentSchema.nullish(),
-  /** Base64 медиа (когда включено в настройках инстанса). */
+  /** Inline base64 of media (when enabled on the instance webhook). */
   base64: z.string().nullish(),
-  /** Тип сообщения по Evolution-классификации (необязательно). */
+  /** Evolution's own classification of the message type (optional). */
   messageType: z.string().nullish(),
 });
 export type WahaMessagePayload = z.infer<typeof wahaMessagePayloadSchema>;
 
-/** Payload события `connection.update`. */
+/** `connection.update` payload. */
 export const wahaSessionStatusPayloadSchema = z
   .object({
-    /** open | connecting | close — состояние соединения. */
+    /** open | connecting | close — connection state. */
     state: z.string().optional(),
-    /** Альтернативное поле, иногда отдают так. */
+    /** Alternative field, occasionally used instead of `state`. */
     status: z.string().optional(),
-    /** JID самого аккаунта, например "972534247634@s.whatsapp.net". */
+    /** The account JID, e.g. "972534247634@s.whatsapp.net". */
     wuid: z.string().optional(),
   })
   .passthrough();
 export type WahaSessionStatusPayload = z.infer<typeof wahaSessionStatusPayloadSchema>;
 
-/** Payload события `qrcode.updated` — Evolution присылает свежий QR. */
+/** `qrcode.updated` payload — Evolution sends a fresh QR. */
 export const wahaQrPayloadSchema = z
   .object({
     qrcode: z
@@ -99,17 +101,18 @@ export const wahaQrPayloadSchema = z
   .passthrough();
 export type WahaQrPayload = z.infer<typeof wahaQrPayloadSchema>;
 
-/** Обёртка любого webhook-события Evolution. */
+/** Envelope of any webhook event from Evolution. */
 export const wahaWebhookSchema = z
   .object({
     event: z.string(),
-    /** Имя инстанса. */
+    /** Instance name. */
     instance: z.string(),
-    /** Полезная нагрузка — формат зависит от события. */
+    /** Payload shape depends on the event. */
     data: z.unknown(),
     /**
-     * Evolution кладёт сюда свой `apikey` (= EVOLUTION_API_KEY).
-     * Используется бэкендом для аутентификации webhook-вызова.
+     * Evolution puts its `apikey` here (instance-level or the global one,
+     * depending on configuration). The backend uses it to authenticate
+     * webhook calls.
      */
     apikey: z.string().optional(),
   })

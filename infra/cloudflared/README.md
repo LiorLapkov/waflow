@@ -1,16 +1,20 @@
-# Cloudflare Tunnel (заготовка)
+# Cloudflare Tunnel (template)
 
-HTTPS-доступ к панели без проброса портов и со скрытым IP домашнего сервера.
+HTTPS access to the panel without port forwarding and with the home server's
+real IP hidden.
 
-## Быстрый старт
+## Quick start
 
-1. Установи `cloudflared` на сервере.
-2. Авторизуйся: `cloudflared tunnel login`.
-3. Создай туннель: `cloudflared tunnel create dljobs-crm` → получишь `<TUNNEL_ID>.json`
-   (credentials). Положи его рядом, он в `.gitignore` (секрет, в репозиторий НЕ коммитим).
-4. Скопируй `config.example.yml` → `config.yml` и подставь домен и TUNNEL_ID.
-5. Привяжи DNS: `cloudflared tunnel route dns dljobs-crm crm.example.com`.
-6. Запусти: `cloudflared tunnel run dljobs-crm` (или systemd-сервис).
+1. Install `cloudflared` on the server.
+2. Authenticate: `cloudflared tunnel login`.
+3. Create the tunnel: `cloudflared tunnel create waflow` → you'll get a
+   `<TUNNEL_ID>.json` credentials file. Place it next to this README; it is
+   listed in `.gitignore` (secret, never committed).
+4. Copy `config.example.yml` → `config.yml` and fill in your domain and
+   TUNNEL_ID.
+5. Bind DNS: `cloudflared tunnel route dns waflow inbox.example.com`.
+6. Run: `cloudflared tunnel run waflow` (or install as a systemd service).
 
-Туннель проксирует на `frontend` (панель). Бэкенд-API можно отдать на отдельный
-поддомен или через path — настраивается в `config.yml` (`ingress`).
+The tunnel proxies to the Caddy reverse-proxy on `localhost:8080`, which then
+routes `/api/*` and `/socket.io/*` to the backend and everything else to the
+frontend — a single hostname covers the whole stack.

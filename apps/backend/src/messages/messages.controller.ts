@@ -4,7 +4,7 @@ import {
   type ChatDto,
   type MessageDto,
   type SendMessageDto,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { CurrentUser } from '../common/decorators';
 import type { AuthUser } from '../common/types';
@@ -16,7 +16,7 @@ import { MessagesService } from './messages.service';
 export class MessagesController {
   constructor(private readonly messages: MessagesService) {}
 
-  // Лента сообщений чата (хронологически).
+  // Message feed for a chat (chronological).
   @Get('chats/:chatId/messages')
   list(
     @CurrentUser() user: AuthUser,
@@ -27,7 +27,7 @@ export class MessagesController {
     return this.messages.listMessages(user, chatId, limit ? Number(limit) : 50, before);
   }
 
-  // Отправка ответа оператором.
+  // Operator reply.
   @Post('messages')
   send(
     @CurrentUser() user: AuthUser,
@@ -45,7 +45,7 @@ export class MessagesController {
     return { ok: true };
   }
 
-  // Принудительный резолв реального номера и имени для LID-чата.
+  // Force-resolve the real phone/name for a LID chat.
   @Post('chats/:chatId/resolve')
   resolve(@CurrentUser() user: AuthUser, @Param('chatId') chatId: string): Promise<ChatDto> {
     return this.messages.resolveChatInfo(user, chatId);

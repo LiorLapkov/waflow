@@ -1,14 +1,14 @@
 'use client';
 
 import { io, type Socket } from 'socket.io-client';
-import type { ServerToClientEvents } from '@dljobs/shared';
+import type { ServerToClientEvents } from '@waflow/shared';
 
 let socket: Socket<ServerToClientEvents> | null = null;
 
 /**
- * Синглтон-сокет. URL не указываем — клиент подключится к тому же origin,
- * с которого загружен фронт. Реверс-прокси (Caddy) проксирует /socket.io/*
- * в backend, включая WebSocket-upgrade.
+ * Singleton socket. We do not pass a URL — the client uses the same origin
+ * the frontend was loaded from. The reverse-proxy (Caddy) routes /socket.io/*
+ * to the backend, including the WebSocket upgrade.
  */
 export function getSocket(): Socket<ServerToClientEvents> {
   if (!socket) {

@@ -1,6 +1,6 @@
-import type { UserRole } from '@dljobs/shared';
+import type { UserRole } from '@waflow/shared';
 
-/** Полезная нагрузка JWT и форма req.user после аутентификации. */
+/** JWT payload and the shape attached to req.user after authentication. */
 export interface JwtPayload {
   sub: string;
   username: string;

@@ -2,8 +2,8 @@ import { BadRequestException, PipeTransform } from '@nestjs/common';
 import type { ZodSchema } from 'zod';
 
 /**
- * Валидирует входные данные по zod-схеме из @dljobs/shared.
- * Единый источник DTO — не дублируем валидацию вручную.
+ * Validates input against a zod schema from @waflow/shared.
+ * Single source of DTOs — no manual validation duplication.
  */
 export class ZodValidationPipe<T> implements PipeTransform {
   constructor(private readonly schema: ZodSchema<T>) {}
@@ -12,7 +12,7 @@ export class ZodValidationPipe<T> implements PipeTransform {
     const result = this.schema.safeParse(value);
     if (!result.success) {
       throw new BadRequestException({
-        message: 'Ошибка валидации',
+        message: 'Validation error',
         issues: result.error.issues.map((i) => ({
           path: i.path.join('.'),
           message: i.message,

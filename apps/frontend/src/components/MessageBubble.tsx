@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageType, type MessageDto } from '@dljobs/shared';
+import { MessageType, type MessageDto } from '@waflow/shared';
 import { mediaUrl } from '@/lib/api';
 import { formatTime } from '@/lib/format';
 
@@ -17,7 +17,7 @@ function MediaContent({ message }: { message: MessageDto }) {
     case MessageType.Document:
       return (
         <a href={src} target="_blank" rel="noreferrer" className="flex items-center gap-2 underline">
-          📄 {message.media.fileName ?? 'Документ'}
+          📄 {message.media.fileName ?? 'Document'}
         </a>
       );
     default:

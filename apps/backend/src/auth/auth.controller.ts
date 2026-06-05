@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-import { loginDtoSchema, type AuthResultDto, type LoginDto, type UserDto } from '@dljobs/shared';
+import { loginDtoSchema, type AuthResultDto, type LoginDto, type UserDto } from '@waflow/shared';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { CurrentUser } from '../common/decorators';
 import type { AuthUser } from '../common/types';
@@ -26,7 +26,7 @@ export class AuthController {
   ): Promise<AuthResultDto> {
     const result = await this.auth.login(dto);
     const isProd = this.config.get('NODE_ENV', { infer: true }) === 'production';
-    // JWT в httpOnly cookie — недоступен JS, защита от XSS-кражи токена.
+    // JWT in an httpOnly cookie — invisible to JS, protects against XSS token theft.
     res.cookie('token', result.token, {
       httpOnly: true,
       sameSite: 'lax',

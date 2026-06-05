@@ -14,7 +14,7 @@ import {
   type MessageNewPayload,
   type SessionQrPayload,
   type SessionStatusPayload,
-} from '@dljobs/shared';
+} from '@waflow/shared';
 import type { AppEnv } from '../config/env';
 import type { JwtPayload } from '../common/types';
 import { NumbersService } from '../numbers/numbers.service';
@@ -23,8 +23,8 @@ const ADMIN_ROOM = 'role:admin';
 const numberRoom = (numberId: string) => `number:${numberId}`;
 
 /**
- * Socket.io шлюз. Аутентификация по JWT из cookie `token` (или auth.token).
- * Клиент получает события только по доступным ему номерам.
+ * Socket.io gateway. Auth via the `token` cookie (or auth.token).
+ * Clients only receive events for numbers they have access to.
  */
 @WebSocketGateway({
   cors: { origin: true, credentials: true },
@@ -58,7 +58,7 @@ export class RealtimeGateway implements OnGatewayConnection {
       const ids = await this.numbers.accessibleNumberIds(user);
       await Promise.all(ids.map((id) => client.join(numberRoom(id))));
     } catch (err) {
-      this.logger.warn(`Сокет отклонён: ${(err as Error).message}`);
+      this.logger.warn(`Socket rejected: ${(err as Error).message}`);
       client.disconnect(true);
     }
   }
@@ -77,7 +77,7 @@ export class RealtimeGateway implements OnGatewayConnection {
     return tokenPair?.[1] ? decodeURIComponent(tokenPair[1]) : null;
   }
 
-  // ── Эмиттеры (вызываются из сервисов) ────────────────────────────────────
+  // ── Emitters (called from services) ────────────────────────────────────
 
   emitMessageNew(payload: MessageNewPayload): void {
     this.server.to(numberRoom(payload.numberId)).to(ADMIN_ROOM).emit(SocketEvent.MessageNew, payload);

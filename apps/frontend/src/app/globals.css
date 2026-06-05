@@ -12,9 +12,9 @@ body {
 }
 
 /*
- * iOS Safari автоматически зумит вьюпорт при фокусе на input/textarea/select,
- * у которого font-size меньше 16px. Лечим: на мобильных размерах принудительно
- * 16px на все формы, на десктопе остаётся прежний text-sm/text-base из Tailwind.
+ * iOS Safari auto-zooms the viewport when an input/textarea/select gets focus
+ * with a font-size below 16px. Fix: at mobile widths force
+ * 16px on form controls; on desktop the regular Tailwind text-sm/text-base stays.
  */
 @media (max-width: 767px) {
   input,
@@ -24,7 +24,7 @@ body {
   }
 }
 
-/* Тонкий скроллбар в стиле мессенджера. */
+/* Thin messenger-style scrollbar. */
 * {
   scrollbar-width: thin;
   scrollbar-color: #374248 transparent;

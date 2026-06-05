@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
-import { wahaWebhookSchema, type WahaWebhook } from '@dljobs/shared';
+import { wahaWebhookSchema, type WahaWebhook } from '@waflow/shared';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { WebhookGuard } from './webhook.guard';
 import { WebhookService } from './webhook.service';
@@ -8,7 +8,7 @@ import { WebhookService } from './webhook.service';
 export class WebhookController {
   constructor(private readonly webhook: WebhookService) {}
 
-  // Evolution шлёт сюда события. Защищено WebhookGuard. Идемпотентность — в ingest.
+  // Evolution posts events here. Protected by WebhookGuard. Idempotency is handled by the ingest path.
   @UseGuards(WebhookGuard)
   @Post('waha')
   @HttpCode(200)

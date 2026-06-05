@@ -1,10 +1,10 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { UserRole } from '@dljobs/shared';
+import type { UserRole } from '@waflow/shared';
 import { ROLES_KEY } from '../common/decorators';
 import type { AuthUser } from '../common/types';
 
-/** Проверяет, что роль пользователя входит в список @Roles(). */
+/** Verifies the user role is in the @Roles() list. */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -19,7 +19,7 @@ export class RolesGuard implements CanActivate {
     }
     const user = context.switchToHttp().getRequest().user as AuthUser | undefined;
     if (!user || !required.includes(user.role)) {
-      throw new ForbiddenException('Недостаточно прав');
+      throw new ForbiddenException('Insufficient permissions');
     }
     return true;
   }

@@ -1,4 +1,4 @@
-import type { ChatDto } from '@dljobs/shared';
+import type { ChatDto } from '@waflow/shared';
 import type { Chat } from '@prisma/client';
 
 export function toChatDto(chat: Chat): ChatDto {
