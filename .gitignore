@@ -32,3 +32,11 @@ infra/.volumes/
 
 # test
 coverage/
+
+# Markdown files — ignore every *.md by default so stray notes / drafts
+# do not leak into the repo. Whitelist the documentation we DO want.
+*.md
+!README.md
+!CLAUDE.md
+!SERVER_SETUP.md
+!infra/cloudflared/README.md
